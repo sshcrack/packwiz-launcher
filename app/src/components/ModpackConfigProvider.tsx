@@ -2,7 +2,8 @@ import { invoke } from '@tauri-apps/api/core'
 import React, { useEffect } from 'react'
 
 export type ModpackConfigState = {
-    title: string,
+    name: string,
+    author: string,
     description: string,
     logo_url: string,
     packwiz_url: string,

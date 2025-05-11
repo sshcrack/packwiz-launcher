@@ -2,11 +2,13 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 
+use registry::{Hive, Security};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModpackConfig {
-    pub title: String,
+    pub name: String,
+    pub author: String,
     pub description: String,
     pub logo_url: String,
     pub packwiz_url: String,
@@ -18,7 +20,8 @@ pub struct ModpackConfig {
 pub fn read_metadata() -> Result<ModpackConfig, String> {
     if cfg!(debug_assertions) {
         return Ok(ModpackConfig {
-            title: "Minecolonies".to_string(),
+            name: "Minecolonies".to_string(),
+            author: "sshcrack".to_string(),
             description: "A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.".to_string(),
             logo_url: "https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg".to_string(),
             packwiz_url: "http://localhost:3000".to_string(),
@@ -80,4 +83,42 @@ pub fn read_metadata() -> Result<ModpackConfig, String> {
     serde_json::from_str(&raw_str)
         .map_err(|e| format!("Failed to parse URL as JSON: {}", e))
         .map(|config: ModpackConfig| config)
+}
+
+pub fn get_prism_launcher_path() -> Result<Option<String>, String> {
+    let key = Hive::ClassesRoot
+        .open(r"prismlauncher\shell\open\command", Security::Read)
+        .ok();
+
+    if key.is_none() {
+        return Ok(None);
+    }
+
+    let key = key.unwrap();
+    let val = key.values().next();
+
+    if val.is_none() {
+        return Ok(None);
+    }
+
+    let val = val.unwrap().ok();
+    if val.is_none() {
+        return Ok(None);
+    }
+
+    let val = val.unwrap();
+    let val = val.data();
+    let val = val.to_string();
+    let val = val.split('"').collect::<Vec<_>>();
+
+    if val.len() < 2 {
+        return Ok(None);
+    }
+
+    let val = val[1].to_string();
+    if val.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(val))
 }

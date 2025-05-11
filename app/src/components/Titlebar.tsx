@@ -1,66 +1,66 @@
-import { Button } from '@heroui/react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 
+export default function Titlebar() {
+  const handleMinimize = async () => {
+    try {
+      await invoke('tauri', {
+        __tauriModule: 'Window',
+        message: {
+          cmd: 'manage',
+          data: {
+            label: 'main',
+            cmd: {
+              type: 'minimize'
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.error('Failed to minimize window:', e);
+    }
+  };
 
-const Titlebar: React.FC = () => {
-    const appWindow = getCurrentWindow();
+  const handleClose = async () => {
+    try {
+      await invoke('tauri', {
+        __tauriModule: 'Window',
+        message: {
+          cmd: 'manage',
+          data: {
+            label: 'main',
+            cmd: {
+              type: 'close'
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.error('Failed to close window:', e);
+    }
+  };
 
-    // Handle minimize window
-    const handleMinimize = async () => {
-        await appWindow.minimize();
-    };
-
-    // Handle close window
-    const handleClose = async () => {
-        await appWindow.close();
-    };
-
-    return (<div
-        className="h-9 bg-neutral-100 dark:bg-neutral-900 flex items-center justify-between select-none"
-        data-tauri-drag-region
-    >
-        {/* App title - also functions as drag region */}
-        <div
-            className="flex items-center h-full px-4"
-            data-tauri-drag-region
-        />            {/* Titlebar buttons */}            <div className="flex h-full">
-            <Button
-                isIconOnly
-                radius="none"
-                variant="light"
-                aria-label="Minimize"
-                className="h-full w-11 text-black dark:text-white hover:bg-neutral-300 dark:hover:bg-neutral-700 rounded-none"
-                onPress={handleMinimize}
-            >
-                <MinimizeIcon />
-            </Button>
-            <Button
-                isIconOnly
-                radius="none"
-                variant="light"
-                aria-label="Close"
-                className="h-full w-11 text-black dark:text-white hover:bg-red-600 hover:text-white rounded-none"
-                onPress={handleClose}
-            >
-                <CloseIcon />
-            </Button>
-        </div>
+  return (
+    <div data-tauri-drag-region className="flex justify-between items-center h-8 px-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Modpack Launcher</div>
+      <div className="flex items-center space-x-1">
+        <button
+          onClick={handleMinimize}
+          className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <button
+          onClick={handleClose}
+          className="flex items-center justify-center w-6 h-6 rounded hover:bg-red-500 hover:text-white dark:hover:bg-red-600 text-gray-500 dark:text-gray-400"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
     </div>
-    );
-};
-
-// Minimize icon component
-const MinimizeIcon = () => (
-    <svg width="10" height="1" viewBox="0 0 10 1" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0 0.5H10" stroke="currentColor" strokeWidth="1" />
-    </svg>
-);
-
-// Close icon component
-const CloseIcon = () => (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1.2" />
-    </svg>
-);
-
-export default Titlebar;
+  );
+}
