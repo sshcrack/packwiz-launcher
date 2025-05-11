@@ -62,61 +62,67 @@ export default function InstallOptions({
         }
     };
 
-    return (
-        <Card style={cardStyle}><CardHeader className="pb-0 pt-6 px-6 rounded-t-none">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">Installation Options</h2>
+    return (<Card style={cardStyle} className="border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
+        <CardHeader className="pb-0 pt-6 px-6 rounded-t-none border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 font-minecraft">Installation Options</h2>
         </CardHeader>
-            <CardBody className="p-6">
-                <div className="mb-4">
-                    <label className="text-sm font-medium mb-2 block text-gray-800 dark:text-gray-200">Installation Type</label>
-                    <div className="space-y-2">
-                        <div className="flex items-start">
-                            <input type="radio" id="prism" name="installType" value="prism" checked={installType === "prism"} onChange={() => handleInstallTypeChange("prism")} className="mt-1 mr-2 accent-blue-600 dark:accent-blue-400" />
-                            <div>
-                                <label htmlFor="prism" className="font-medium cursor-pointer text-gray-800 dark:text-gray-200">
-                                    PrismLauncher
-                                    {hasLauncher === true && <span className="ml-2 text-xs text-green-500 dark:text-green-400">(Detected)</span>}
-                                </label>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {hasLauncher
-                                        ? "Install using existing PrismLauncher"
-                                        : "Download and install PrismLauncher first"}
-                                </p>
-                            </div>
+        <CardBody className="p-6">
+            <div className="mb-4">
+                <label className="text-sm font-medium mb-2 block text-gray-800 dark:text-gray-200">Installation Type</label>
+                <div className="space-y-2">
+                    <div className="flex items-start">
+                        <input type="radio" id="prism" name="installType" value="prism" checked={installType === "prism"} onChange={() => handleInstallTypeChange("prism")} className="mt-1 mr-2 accent-blue-600 dark:accent-blue-400" />
+                        <div>
+                            <label htmlFor="prism" className="font-medium cursor-pointer text-gray-800 dark:text-gray-200">
+                                PrismLauncher
+                                {hasLauncher === true && <span className="ml-2 text-xs text-green-500 dark:text-green-400">(Detected)</span>}
+                            </label>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {hasLauncher
+                                    ? "Install using existing PrismLauncher"
+                                    : "Download and install PrismLauncher first"}
+                            </p>
                         </div>
-                        <div className="flex items-start">
-                            <input type="radio" id="portable" name="installType" value="portable" checked={installType === "portable"} onChange={() => handleInstallTypeChange("portable")} className="mt-1 mr-2 accent-blue-600 dark:accent-blue-400" />
-                            <div>
-                                <label htmlFor="portable" className="font-medium cursor-pointer text-gray-800 dark:text-gray-200">Portable</label>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Install as standalone portable installation</p>
-                            </div>
+                    </div>
+                    <div className="flex items-start">
+                        <input type="radio" id="portable" name="installType" value="portable" checked={installType === "portable"} onChange={() => handleInstallTypeChange("portable")} className="mt-1 mr-2 accent-blue-600 dark:accent-blue-400" />
+                        <div>
+                            <label htmlFor="portable" className="font-medium cursor-pointer text-gray-800 dark:text-gray-200">Portable</label>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Install as standalone portable installation</p>
                         </div>
                     </div>
                 </div>
-                <div className="mt-4">
-                    <Input
-                        readOnly
-                        label={installType === "portable" ? "Installation Directory" : "PrismLauncher Location (Optional)"}
-                        placeholder={installType === "portable" ? "Select folder for installation" : "Leave empty to auto-detect or install"}
-                        value={installType === "portable" ? portablePath : prismPath}
-                        onClick={() => handlePathSelect()}
-                        classNames={{
-                            label: "text-gray-800 dark:text-gray-200",
-                            input: "cursor-pointer text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                        }} endContent={
-                            <Button size="sm" variant="ghost" color="primary" isLoading={isSelectingPath} onPress={handlePathSelect}
-                            >
-                                Browse
-                            </Button>
-                        } isRequired={installType === "portable"}
-                    />
-                </div>
-            </CardBody>
-            <CardFooter><Button color="primary" variant="solid" fullWidth={true} onPress={startInstallation} isDisabled={installType === "portable" && !portablePath}
+            </div>
+            <div className="mt-4">
+                <Input
+                    readOnly
+                    label={installType === "portable" ? "Installation Directory" : "PrismLauncher Location (Optional)"}
+                    placeholder={installType === "portable" ? "Select folder for installation" : "Leave empty to auto-detect or install"}
+                    value={installType === "portable" ? portablePath : prismPath}
+                    onClick={() => handlePathSelect()}
+                    classNames={{
+                        label: "text-gray-800 dark:text-gray-200",
+                        input: "cursor-pointer text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                    }} endContent={
+                        <Button size="sm" variant="ghost" color="primary" isLoading={isSelectingPath} onPress={handlePathSelect}
+                        >
+                            Browse
+                        </Button>
+                    } isRequired={installType === "portable"}
+                />
+            </div>
+        </CardBody>            <CardFooter className="px-6 py-4">
+            <Button
+                color="primary"
+                variant="solid"
+                fullWidth={true}
+                onPress={startInstallation}
+                isDisabled={installType === "portable" && !portablePath}
+                className="font-minecraft text-white uppercase tracking-wide py-2 shadow-md text-xs"
             >
                 Install Modpack
             </Button>
-            </CardFooter>
-        </Card>
+        </CardFooter>
+    </Card>
     );
 }

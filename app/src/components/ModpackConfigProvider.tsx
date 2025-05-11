@@ -7,6 +7,11 @@ export type ModpackConfigState = {
     description: string,
     logo_url: string,
     packwiz_url: string,
+    minecraft?: string,
+    modloader?: {
+        type: string,
+        version: string
+    },
     theme: "dark" | "light",
     background: string
 }

@@ -1,0 +1,22 @@
+/* Alternative Minecraft style fonts */
+
+/* Option 1: Minecraft-style pixel font */
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+/* Option 2: Less blocky but still pixelated font */
+@import url("https://fonts.googleapis.com/css2?family=Silkscreen&display=swap");
+
+/* Option 3: A more readable pixel font */
+@import url("https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap");
+
+/* Option 4: Cleaner pixel font, good readability */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&display=swap");
+
+/*
+  To use any of these fonts, replace the font-family in your .font-minecraft class:
+  
+  Option 1 (current): "Press Start 2P", cursive;
+  Option 2: "Silkscreen", cursive;
+  Option 3: "Pixelify Sans", cursive;
+  Option 4: "IBM Plex Mono", monospace;
+*/

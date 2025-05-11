@@ -59,6 +59,7 @@ async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
 async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result<(), String> {
     let path = custom_path.or(util::get_prism_launcher_path().ok().flatten());
 
+    log::info!("PrismLauncher path: {:?}", path);
     if path.is_none() {
         // Installing PrismLauncher
         let tmp_path = std::env::temp_dir().join(Uuid::new_v4().to_string() + "-installer.exe");
@@ -101,6 +102,13 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
             .await
             .map_err(|e| format!("Failed to run PrismLauncher installer: {}", e))?;
     }
+
+    let path = path.or(util::get_prism_launcher_path().ok().flatten());
+    if path.is_none() {
+        return Err("PrismLauncher installation canceled.".into());
+    }
+
+    let path = path.unwrap();
 
     Ok(())
 }
