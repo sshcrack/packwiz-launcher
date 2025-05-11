@@ -5,7 +5,7 @@ use std::io::{Read, Seek, SeekFrom};
 /// Reads the URL that was appended to the end of the executable
 pub fn read_appended_url() -> Result<String, String> {
     if cfg!(debug_assertions) {
-        return Ok("https://localhost:8080".to_string())
+        return Ok("https://localhost:8080".to_string());
     }
 
     // Get the path to the current executable

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "modpack-launcher",
+  "productName": "modpack-installer",
   "version": "0.1.0",
-  "identifier": "me.sshcrack.modpack-launcher",
+  "identifier": "me.sshcrack.modpack-installer",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "modpack-launcher",
+        "title": "Modpack Installer",
         "width": 800,
-        "height": 600
+        "height": 700,
+        "resizable": false,
+        "decorations": false
       }
     ],
     "security": {

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    modpack_launcher_lib::run()
+    modpack_installer_lib::run()
 }
