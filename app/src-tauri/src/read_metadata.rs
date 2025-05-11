@@ -2,10 +2,29 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ModpackConfig {
+    pub title: String,
+    pub description: String,
+    pub logo_url: String,
+    pub packwiz_url: String,
+    pub theme: String,
+    pub background: String,
+}
+
 /// Reads the URL that was appended to the end of the executable
-pub fn read_appended_url() -> Result<String, String> {
+pub fn read_metadata() -> Result<ModpackConfig, String> {
     if cfg!(debug_assertions) {
-        return Ok("https://localhost:8080".to_string());
+        return Ok(ModpackConfig {
+            title: "Minecolonies".to_string(),
+            description: "A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.".to_string(),
+            logo_url: "https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg".to_string(),
+            packwiz_url: "http://localhost:3000".to_string(),
+            theme: "dark".to_string(),
+            background: "deepslate".to_string()
+        });
     }
 
     // Get the path to the current executable
@@ -55,22 +74,10 @@ pub fn read_appended_url() -> Result<String, String> {
         .map_err(|e| format!("Failed to read URL: {}", e))?;
 
     // Convert bytes to String
-    String::from_utf8(url_bytes).map_err(|e| format!("URL is not valid UTF-8: {}", e))
-}
+    let raw_str =
+        String::from_utf8(url_bytes).map_err(|e| format!("URL is not valid UTF-8: {}", e))?;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_read_appended_url() {
-        // This test will fail if run on an executable without an appended URL
-        if let Ok(url) = read_appended_url() {
-            println!("Found URL: {}", url);
-            assert!(!url.is_empty());
-        } else {
-            // This is expected during normal test runs
-            println!("No URL found (expected during tests)");
-        }
-    }
+    serde_json::from_str(&raw_str)
+        .map_err(|e| format!("Failed to parse URL as JSON: {}", e))
+        .map(|config: ModpackConfig| config)
 }

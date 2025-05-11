@@ -1,19 +1,35 @@
-import React from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import React, { useEffect } from 'react'
 
-const modpackConfig = {
-    title: "Minecolonies",
-    description: "A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.",
-    logoUrl: "https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg",
-    packwizUrl: "http://localhost:3000",
-    theme: "dark",
-    background: "deepslate"
+export type ModpackConfigState = {
+    title: string,
+    description: string,
+    logo_url: string,
+    packwiz_url: string,
+    theme: "dark" | "light",
+    background: string
 }
-
-export type ModpackConfigState = typeof modpackConfig
 
 export const ModpackConfigContext = React.createContext<ModpackConfigState>({} as any)
 
 export default function ModpackConfigProvider({ children }: { children: React.ReactNode }) {
+    const [modpackConfig, setModpackConfig] = React.useState<ModpackConfigState | null>(null)
+
+
+    useEffect(() => {
+        invoke("read_config")
+            .then((config) => {
+                setModpackConfig(config as ModpackConfigState)
+            })
+            .catch((err) => {
+                alert("Invalid mod config file. " + (err.message ?? JSON.stringify(err)))
+            })
+    }, [])
+
+    if (!modpackConfig) {
+        return <></>
+    }
+
     return (
         <ModpackConfigContext.Provider value={modpackConfig}>
             {children}

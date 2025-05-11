@@ -1,21 +1,21 @@
 import { CSSProperties, useContext, useMemo, useState } from "react";
-import { Button, Card, CardHeader, CardBody, Image, Progress, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input } from '@heroui/react';
+import { Button, Card, CardHeader, CardBody, Image, Progress, Select, SelectItem, Input, Checkbox } from '@heroui/react';
 import Titlebar from "./components/Titlebar";
 import { ModpackConfigContext } from './components/ModpackConfigProvider';
+import { open } from '@tauri-apps/plugin-dialog';
 
 function App() {
-  const { description, logoUrl, title, theme, background: blockId } = useContext(ModpackConfigContext)
+  const { description, logo_url: logoUrl, title, theme, background: blockId } = useContext(ModpackConfigContext)
   const cardStyle: CSSProperties = {
     backdropFilter: `blur(2px) brightness(${theme === "dark" ? "0.5" : "1.5"})`,
     background: "transparent"
   }
-
   // State for installation type
   const [installType, setInstallType] = useState("prism");
   const [installPath, setInstallPath] = useState("");
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState(0);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [useCustomInstall, setUseCustomInstall] = useState(false);
   const background = useMemo(() => {
     return `https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21.5/assets/minecraft/textures/block/${blockId}.png`
   }, [blockId]);
@@ -23,7 +23,6 @@ function App() {
   // Mock installation function
   const startInstallation = () => {
     setInstalling(true);
-    onClose();
 
     // Simulate installation progress
     let progressValue = 0;
@@ -40,10 +39,28 @@ function App() {
 
   // Handle file/directory selection
   const handlePathSelection = async () => {
-    // This would be replaced with actual file dialog API
-    // For example using electron's dialog API
-    alert("In a real app, this would open a file dialog");
-    setInstallPath("C:\\Games\\ModpackInstall"); // Example path
+    const res = installType === "portable" ?
+      await open({
+        directory: true,
+        multiple: false,
+        title: "Select Installation Directory",
+      }) :
+      await open({
+        directory: false,
+        multiple: false,
+        title: "Select PrismLauncher binary",
+        filters: [
+          {
+            name: "PrismLauncher",
+            extensions: ["exe", "app"]
+          }
+        ]
+      })
+
+    if (!res)
+      return
+
+    setInstallPath(res);
   };
 
   return (
@@ -78,42 +95,52 @@ function App() {
               <h2 className="text-xl font-bold">Installation Options</h2>
             </CardHeader>
             <CardBody className="p-6">
-              <div className="mb-6">
-                <Select
-                  label="Installation Type"
-                  placeholder="Select installation type"
-                  selectedKeys={[installType]}
-                  onChange={(e) => setInstallType(e.target.value)}
-                  className="mb-4"
-                >
-                  <SelectItem key="portable">
-                    Portable Install
-                  </SelectItem>
-                  <SelectItem key="prism">
-                    Install to PrismLauncher
-                  </SelectItem>
-                </Select>
+              <div className="mb-6">                <Select
+                label="Installation Type"
+                placeholder="Select installation type"
+                selectedKeys={[installType]}
+                onChange={(e) => {
+                  setInstallType(e.target.value)
+                  setInstallPath("")
+                }}
+                className="mb-4"
+              >
+                <SelectItem key="portable">
+                  Portable Install
+                </SelectItem>
+                <SelectItem key="prism">
+                  Install to PrismLauncher
+                </SelectItem>
+              </Select>
 
-                {installType === "portable" && (
+                {installType === "prism" && (
+                  <Checkbox
+                    isSelected={useCustomInstall}
+                    onValueChange={setUseCustomInstall}
+                    className="mb-4"
+                  >
+                    Specify custom PrismLauncher location
+                  </Checkbox>
+                )}
+
+                {(installType === "portable" || (installType === "prism" && useCustomInstall)) && (
                   <div className="flex gap-4 items-center">
                     <Input
                       type="text"
                       readOnly
-                      className="flex-1 p-2"
-                      placeholder={"Choose save directory"}
+                      className="flex-1 p-2 pl-0"
+                      placeholder={installType === "portable" ? "Choose save directory" : "Select PrismLauncher location"}
                       onClick={handlePathSelection}
                       value={installPath}
                     />
                     <Button onPress={handlePathSelection}>Browse...</Button>
                   </div>
                 )}
-              </div>
-
-              <div className="flex justify-end">
+              </div>              <div className="flex justify-end">
                 <Button
                   color="primary"
-                  onPress={onOpen}
-                  isDisabled={!installPath}
+                  onPress={startInstallation}
+                  isDisabled={!installPath && (installType === "portable" || (installType === "prism" && useCustomInstall))}
                 >
                   Install
                 </Button>
@@ -144,26 +171,6 @@ function App() {
             </CardBody>
           </Card>
         )}
-
-        {/* Confirmation Modal */}
-        <Modal isOpen={isOpen} onClose={onClose}>
-          <ModalContent>
-            <ModalHeader>Confirm Installation</ModalHeader>
-            <ModalBody>
-              <p>You are about to install {title} as a{" "}
-                {installType === "portable" ? "portable installation" : "PrismLauncher instance"}.</p>
-              <p className="mt-2">Installation path: {installPath}</p>
-            </ModalBody>
-            <ModalFooter>
-              <Button color="default" variant="light" onPress={onClose}>
-                Cancel
-              </Button>
-              <Button color="primary" onPress={startInstallation}>
-                Confirm
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
       </main>
     </div>
   );
