@@ -23,12 +23,12 @@ fn get_prism_launcher_path() -> Result<Option<String>, String> {
 #[tauri::command]
 async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
     // Validate path
-    let path_buf = std::path::Path::new(path);
-    if !path_buf.exists() {
+    let path = std::path::Path::new(path);
+    if !path.exists() {
         return Err("The specified path doesn't exist".into());
     }
 
-    if !path_buf.is_dir() {
+    if !path.is_dir() {
         return Err("The specified path is not a directory".into());
     }
 
@@ -39,18 +39,42 @@ async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
     )
     .unwrap();
 
-    // TODO: Add actual portable installation logic here
-    // For now, this is a placeholder
+    // Installing PrismLauncher
+    let zip_path = path.join("launcher.zip");
+    let s = download(
+        "PrismLauncher/PrismLauncher",
+        |s| s.to_lowercase().contains("portable") && s.contains("MSVC") && !s.contains("arm64"),
+        zip_path.as_path(),
+        None,
+    )
+    .await;
 
-    // Simulate progress
-    for i in 1..=10 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-        app.emit(
-            "install_progress",
-            (i as f64 * 10.0, "Installing modpack files..."),
-        )
-        .unwrap();
+    if let Err(e) = s {
+        return Err(format!("Failed to download PrismLauncher: {}", e));
     }
+
+    let stream = s.unwrap();
+
+    pin_mut!(stream);
+    while let Some(status) = stream.next().await {
+        match status {
+            download::DownloadStatus::Error(error) => {
+                return Err(format!("Error downloading PrismLauncher: {}", error));
+            }
+            download::DownloadStatus::Progress(percentage, msg) => {
+                // Update the UI with the progress
+                app.emit("install_progress", (percentage / 2.0, msg))
+                    .unwrap();
+            }
+        }
+    }
+
+    app.emit("install_progress", (0.5, "Extracting PrismLauncher"))
+        .unwrap();
+
+    app.emit("click_install", ()).unwrap();
+
+    
 
     Ok(())
 }
@@ -65,7 +89,7 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
         let tmp_path = std::env::temp_dir().join(Uuid::new_v4().to_string() + "-installer.exe");
 
         let s = download(
-            "PrismLauncher",
+            "PrismLauncher/PrismLauncher",
             |s| s.contains(".exe") && s.contains("MSVC") && !s.contains("arm64"),
             tmp_path.as_path(),
             None,
@@ -92,15 +116,23 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
             }
         }
 
-        app.emit("install_progress", (50.0, "Installing PrismLauncher"))
+        app.emit("install_progress", (0.5, "Installing PrismLauncher"))
             .unwrap();
 
         app.emit("click_install", ()).unwrap();
 
-        Command::new(&tmp_path)
+        let out = Command::new(&tmp_path)
             .output()
             .await
             .map_err(|e| format!("Failed to run PrismLauncher installer: {}", e))?;
+
+        let status = out.status;
+        if !status.success() {
+            return Err(format!(
+                "PrismLauncher installer exited with code: {}",
+                status.code().unwrap_or(-1)
+            ));
+        }
     }
 
     let path = path.or(util::get_prism_launcher_path().ok().flatten());

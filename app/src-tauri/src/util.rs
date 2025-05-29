@@ -12,6 +12,7 @@ pub struct ModpackConfig {
     pub description: String,
     pub logo_url: String,
     pub packwiz_url: String,
+    pub base_pack_url: String,
     pub theme: String,
     pub background: String,
 }
@@ -24,6 +25,7 @@ pub fn read_metadata() -> Result<ModpackConfig, String> {
             author: "sshcrack".to_string(),
             description: "A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.".to_string(),
             logo_url: "https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg".to_string(),
+            base_pack_url: "http://localhost:3001/base_modpack.zip".to_string(),
             packwiz_url: "http://localhost:3000".to_string(),
             theme: "dark".to_string(),
             background: "deepslate".to_string()

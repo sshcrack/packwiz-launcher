@@ -15,13 +15,14 @@ export default function InstallProgress({ cardStyle, progress, progressMessage }
             <CardBody className="p-6">
                 <Progress
                     value={progress}
+                    maxValue={1}
                     className="mb-2"
                     color="primary"
                     size="lg"
                     showValueLabel={true}
                 />
                 <p className="text-center text-gray-600 dark:text-gray-300">
-                    {progressMessage || (progress < 100
+                    {progressMessage || (progress < 1
                         ? `Downloading and installing modpack (${progress}%)`
                         : "Installation complete!")}
                 </p>

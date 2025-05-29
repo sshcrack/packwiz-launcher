@@ -62,7 +62,7 @@ export function useInstallation() {
             unlistenProgress();
             unlistenClick();
 
-            setProgress(100);
+            setProgress(1);
             setProgressMessage("Installation completed successfully!");
         } catch (error) {
             console.error("Installation failed:", error);

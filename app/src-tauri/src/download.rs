@@ -17,7 +17,7 @@ pub(super) enum DownloadStatus {
 
 
 pub(super) async fn download<T: AsRef<Path>, K>(
-    display_name: &str,
+    repo: &str,
     is_valid_file: K,
     path: T,
     hash_url: Option<String>,
@@ -25,12 +25,14 @@ pub(super) async fn download<T: AsRef<Path>, K>(
 where
     K: Fn(&str) -> bool
 {
+    let display_name = repo.split('/').last().unwrap_or("unknown");
+
     let client = reqwest::ClientBuilder::new()
         .user_agent("Packwiz-Installer")
         .build()?;
 
     let releases: github_releases::Root = client
-        .get("https://api.github.com/repos/PrismLauncher/PrismLauncher/releases")
+        .get(format!("https://api.github.com/repos/{repo}/releases"))
         .send()
         .await?
         .json()
