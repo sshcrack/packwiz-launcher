@@ -1,0 +1,27 @@
+name = "modpack-installer-generator"
+main = "worker.js"
+compatibility_date = "2023-05-31"
+
+[site]
+bucket = "./dist"
+
+[build]
+command = "pnpm build"
+
+[vars]
+GITHUB_REPO = "sshcrack/packwiz-launcher"
+WORKFLOW_ID = "165435937"
+
+# Bind a KV namespace for storing temporary data or caching API responses
+[[kv_namespaces]]
+binding = "CACHE"
+id = "example_kv_namespace_id" # Replace with actual KV namespace ID in production
+
+# Set up a Cloudflare R2 bucket for storing icons
+[[r2_buckets]]
+binding = "ICONS_BUCKET"
+bucket_name = "modpack-icons"
+preview_bucket_name = "modpack-icons-dev"
+
+# Secrets needed:
+# - GITHUB_TOKEN: GitHub personal access token with permissions to trigger workflows
