@@ -64,7 +64,7 @@ jobs:
           echo "Icon downloaded to $iconPath"
 
       - name: Generate Tauri icons
-        run: pnpm tauri icon ../temp_icon.png
+        run: pnpm tauri icon ./temp_icon.png
 
       - name: Calculate icon hash
         id: icon-hash
