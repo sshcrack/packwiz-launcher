@@ -90,5 +90,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: modpack-installer-exe
-          path: src-tauri/target/release/modpack-installer.exe
+          path: app/src-tauri/target/release/modpack-installer.exe
           if-no-files-found: error
