@@ -6,7 +6,7 @@ use deletion_guard::TemporaryFileCleaner;
 use download_extract_progress::{download_github, extract_zip};
 use futures_util::{pin_mut, StreamExt};
 use modpack::install_modpack;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::process::Command;
 use util::ModpackConfig;
 
@@ -178,6 +178,22 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let config = util::read_metadata()
+                .map_err(|e| {
+                    log::error!("Failed to read config: {}", e);
+                    e
+                })?;
+
+            let w = app.webview_windows();
+            let (_, w) = w
+                .iter()
+                .next()
+                .ok_or("No webview window found")?;
+
+            w.set_title(format!("{} Installer", config.name).as_str())?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             read_config,
             get_prism_launcher_path,

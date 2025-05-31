@@ -1,6 +1,10 @@
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { useContext } from 'react';
+import { ModpackConfigContext } from './ModpackConfigProvider';
 
 export default function Titlebar() {
+    const { name } = useContext(ModpackConfigContext);
+
     const handleMinimize = async () => {
         try {
             const app = getCurrentWebview()
@@ -21,7 +25,7 @@ export default function Titlebar() {
 
     return (
         <div data-tauri-drag-region className="flex justify-between items-center h-8 px-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Modpack Launcher</div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{name ? name + " Installer" : "Modpack Launcher"}</div>
             <div className="flex items-center space-x-1">
                 <button
                     onClick={handleMinimize}

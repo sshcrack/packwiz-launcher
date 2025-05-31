@@ -4,31 +4,31 @@ on:
   workflow_dispatch:
     inputs:
       icon_url:
-        description: 'URL to the ICO file'
+        description: "URL to the ICO file"
         required: true
         type: string
 
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Download latest packwiz-launcher release
         id: download-launcher
         shell: pwsh
         run: |
           $repo = "sshcrack/packwiz-launcher"
           $api_url = "https://api.github.com/repos/$repo/releases/latest"
-          
+
           # Get latest release info
           $release = Invoke-RestMethod -Uri $api_url
-          
+
           # Find the exe asset
           $asset = $release.assets | Where-Object { $_.name -like "*.exe" } | Select-Object -First 1
-          
+
           if ($asset) {
             # Create directory for the downloaded file
             New-Item -ItemType Directory -Force -Path "launcher"
@@ -45,20 +45,20 @@ jobs:
             echo "No executable found in the latest release!"
             exit 1
           }
-      
+
       - name: Download and extract Resource Hacker
         id: download-reshacker
         shell: pwsh
         run: |
           $url = "https://www.angusj.com/resourcehacker/resource_hacker.zip"
           $output_path = "resource_hacker.zip"
-          
+
           # Download Resource Hacker
           Invoke-WebRequest -Uri $url -OutFile $output_path
-          
+
           # Extract the zip
           Expand-Archive -Path $output_path -DestinationPath "resource_hacker"
-          
+
           # Verify ResourceHacker.exe exists
           if (Test-Path "resource_hacker\ResourceHacker.exe") {
             echo "reshacker_path=resource_hacker\ResourceHacker.exe" >> $env:GITHUB_OUTPUT
@@ -68,17 +68,17 @@ jobs:
             echo "ResourceHacker.exe not found in the extracted archive!"
             exit 1
           }
-      
+
       - name: Download icon file
         id: download-icon
         shell: pwsh
         run: |
           $url = "${{ github.event.inputs.icon_url }}"
           $output_path = "custom_icon.ico"
-          
+
           # Download the icon file
           Invoke-WebRequest -Uri $url -OutFile $output_path
-          
+
           # Verify the icon file exists
           if (Test-Path $output_path) {
             echo "icon_path=$output_path" >> $env:GITHUB_OUTPUT
@@ -88,7 +88,7 @@ jobs:
             echo "Failed to download icon file!"
             exit 1
           }
-      
+
       - name: Change launcher icon
         id: change-icon
         shell: pwsh
@@ -123,7 +123,7 @@ jobs:
             echo "Failed to create custom launcher executable within $timeoutSeconds seconds!"
             exit 1
           }
-      
+
       - name: Cache build artifacts
         uses: actions/cache@v4
         with:
@@ -131,7 +131,7 @@ jobs:
           key: ${{ runner.os }}-packwiz-launcher-${{ github.run_id }}-${{ github.run_number }}
           restore-keys: |
             ${{ runner.os }}-packwiz-launcher-
-      
+
       - name: Upload customized launcher
         uses: actions/upload-artifact@v4
         with:
