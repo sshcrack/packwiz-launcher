@@ -44,6 +44,7 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
+        working-directory: app
         run: pnpm install
 
       - name: Setup Rust
@@ -64,7 +65,8 @@ jobs:
           echo "Icon downloaded to $iconPath"
 
       - name: Generate Tauri icons
-        run: pnpm tauri icon temp_icon.png
+        working-directory: app
+        run: pnpm tauri icon ../temp_icon.png
 
       - name: Calculate icon hash
         id: icon-hash
@@ -84,6 +86,7 @@ jobs:
             ${{ runner.os }}-tauri-build-
 
       - name: Build Tauri App
+        working-directory: app
         if: steps.cache-build.outputs.cache-hit != 'true'
         run: pnpm tauri build
 
