@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
+          
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
@@ -39,13 +39,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('app/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        working-directory: app
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -53,7 +52,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "app/src-tauri -> target"
+          workspaces: "src-tauri -> target"
           shared-key: "app-build"
 
       - name: Download icon
@@ -65,7 +64,6 @@ jobs:
           echo "Icon downloaded to $iconPath"
 
       - name: Generate Tauri icons
-        working-directory: app
         run: pnpm tauri icon ../temp_icon.png
 
       - name: Calculate icon hash
@@ -79,14 +77,12 @@ jobs:
         id: cache-build
         uses: actions/cache@v4
         with:
-          path: app/src-tauri/target/release/modpack-installer.exe
-          key: ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-${{ hashFiles('app/src-tauri/**/*.rs', 'app/src-tauri/Cargo.toml', 'app/src-tauri/tauri.conf.json', 'app/package.json') }}
+          path: src-tauri/target/release/modpack-installer.exe
+          key: ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-${{ hashFiles('src-tauri/**/*.rs', 'src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-
-            ${{ runner.os }}-tauri-build-
 
       - name: Build Tauri App
-        working-directory: app
         if: steps.cache-build.outputs.cache-hit != 'true'
         run: pnpm tauri build
 
@@ -94,5 +90,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: modpack-installer-exe
-          path: app/src-tauri/target/release/modpack-installer.exe
+          path: src-tauri/target/release/modpack-installer.exe
           if-no-files-found: error
