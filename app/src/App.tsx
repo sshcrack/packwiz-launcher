@@ -4,6 +4,7 @@ import { ModpackConfigContext } from './components/ModpackConfigProvider';
 import { ModpackInfo, InstallOptions, InstallProgress } from "./components/installation";
 import { useInstallation } from "./hooks";
 import { getCardStyle } from "./styles/MinecraftUI";
+import ImportDialog from './components/ImportDialog';
 
 function App() {
   const { theme, background: blockId, logo_url } = useContext(ModpackConfigContext);
@@ -16,7 +17,13 @@ function App() {
     progress,
     progressMessage,
     hasLauncher,
-    startInstallation
+    startInstallation,
+    error,
+    retryInstallation,
+    resetInstallation,
+    showImportDialog,
+    setShowImportDialog,
+    isNewInstallation
   } = useInstallation();
 
   // Set favicon from logo_url if available
@@ -51,9 +58,7 @@ function App() {
       }}>
         <div className="max-w-5xl mx-auto w-full">
           {/* Modpack Information Section */}
-          <ModpackInfo cardStyle={cardStyle} />
-
-          {/* Installation Options or Progress Section */}
+          <ModpackInfo cardStyle={cardStyle} />          {/* Installation Options or Progress Section */}
           {!installing ? (
             <InstallOptions
               cardStyle={cardStyle}
@@ -69,10 +74,19 @@ function App() {
               cardStyle={cardStyle}
               progress={progress}
               progressMessage={progressMessage}
+              error={error}
+              onRetry={retryInstallation}
+              onCancel={resetInstallation}
             />
           )}
         </div>
       </main>
+      {/* Import Dialog */}
+      <ImportDialog 
+        open={showImportDialog} 
+        onClose={() => setShowImportDialog(false)}
+        isNewInstallation={isNewInstallation}
+      />
     </div>
   );
 }

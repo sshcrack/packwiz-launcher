@@ -1,13 +1,14 @@
-mod download;
-mod github_releases;
+mod deletion_guard;
+mod modpack;
 mod util;
 
-use download::download;
+use deletion_guard::TemporaryFileCleaner;
+use download_extract_progress::{download_github, extract_zip};
 use futures_util::{pin_mut, StreamExt};
+use modpack::install_modpack;
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 use util::ModpackConfig;
-use uuid::Uuid;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -17,7 +18,7 @@ fn read_config() -> Result<ModpackConfig, String> {
 
 #[tauri::command]
 fn get_prism_launcher_path() -> Result<Option<String>, String> {
-    util::get_prism_launcher_path()
+    util::get_prism_launcher_exec()
 }
 
 #[tauri::command]
@@ -40,11 +41,11 @@ async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
     .unwrap();
 
     // Installing PrismLauncher
-    let zip_path = path.join("launcher.zip");
-    let s = download(
+    let tmp_file = TemporaryFileCleaner::new();
+    let s = download_github(
         "PrismLauncher/PrismLauncher",
         |s| s.to_lowercase().contains("portable") && s.contains("MSVC") && !s.contains("arm64"),
-        zip_path.as_path(),
+        tmp_file.file_path(),
         None,
     )
     .await;
@@ -56,42 +57,56 @@ async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
     let stream = s.unwrap();
 
     pin_mut!(stream);
-    while let Some(status) = stream.next().await {
-        match status {
-            download::DownloadStatus::Error(error) => {
-                return Err(format!("Error downloading PrismLauncher: {}", error));
-            }
-            download::DownloadStatus::Progress(percentage, msg) => {
-                // Update the UI with the progress
-                app.emit("install_progress", (percentage / 2.0, msg))
-                    .unwrap();
-            }
-        }
+    while let Some(res) = stream.next().await {
+        let (percentage, msg) =
+            res.map_err(|e| format!("Error downloading PrismLauncher: {}", e))?;
+
+        app.emit("install_progress", (percentage / 3.0, msg))
+            .unwrap();
     }
 
-    app.emit("install_progress", (0.5, "Extracting PrismLauncher"))
+    app.emit("install_progress", (0.333, "Extracting PrismLauncher"))
         .unwrap();
 
-    app.emit("click_install", ()).unwrap();
+    println!(
+        "Extracting PrismLauncher to: {}",
+        tmp_file.file_path().display()
+    );
 
-    
+    // Extracting PrismLauncher
+    let extract = extract_zip(tmp_file.file_path(), path).await;
+    pin_mut!(extract);
 
+    while let Some(res) = extract.next().await {
+        let (percentage, msg) =
+            res.map_err(|e| format!("Error extracting PrismLauncher: {}", e))?;
+
+        app.emit("install_progress", (0.333 + percentage / 3.0, msg))
+            .unwrap();
+    }
+
+    let install = install_modpack(&path.join("prismlauncher.exe"));
+    pin_mut!(install);
+
+    while let Some(res) = install.next().await {
+        let (percentage, msg) = res.map_err(|e| format!("Error installing modpack: {}", e))?;
+        app.emit("install_progress", (0.666 + percentage / 3.0, msg))
+            .unwrap();
+    }
     Ok(())
 }
 
 #[tauri::command]
 async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result<(), String> {
-    let path = custom_path.or(util::get_prism_launcher_path().ok().flatten());
+    let path = custom_path.or(util::get_prism_launcher_exec().ok().flatten());
 
     log::info!("PrismLauncher path: {:?}", path);
     if path.is_none() {
-        // Installing PrismLauncher
-        let tmp_path = std::env::temp_dir().join(Uuid::new_v4().to_string() + "-installer.exe");
-
-        let s = download(
+        let tmp_file = TemporaryFileCleaner::new();
+        let s = download_github(
             "PrismLauncher/PrismLauncher",
             |s| s.contains(".exe") && s.contains("MSVC") && !s.contains("arm64"),
-            tmp_path.as_path(),
+            tmp_file.file_path(),
             None,
         )
         .await;
@@ -103,25 +118,17 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
         let stream = s.unwrap();
 
         pin_mut!(stream);
-        while let Some(status) = stream.next().await {
-            match status {
-                download::DownloadStatus::Error(error) => {
-                    return Err(format!("Error downloading PrismLauncher: {}", error));
-                }
-                download::DownloadStatus::Progress(percentage, msg) => {
-                    // Update the UI with the progress
-                    app.emit("install_progress", (percentage / 2.0, msg))
-                        .unwrap();
-                }
-            }
+        while let Some(res) = stream.next().await {
+            let (percentage, msg) =
+                res.map_err(|e| format!("Error downloading PrismLauncher: {}", e))?;
+            app.emit("install_progress", (percentage / 3.0, msg))
+                .unwrap();
         }
 
-        app.emit("install_progress", (0.5, "Installing PrismLauncher"))
+        app.emit("install_progress", (0.333, "Installing PrismLauncher"))
             .unwrap();
 
-        app.emit("click_install", ()).unwrap();
-
-        let out = Command::new(&tmp_path)
+        let out = Command::new(&tmp_file.file_path())
             .output()
             .await
             .map_err(|e| format!("Failed to run PrismLauncher installer: {}", e))?;
@@ -133,15 +140,27 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
                 status.code().unwrap_or(-1)
             ));
         }
+
+        app.emit("install_progress", (0.666, "Installing modpack..."))
+            .unwrap();
     }
 
-    let path = path.or(util::get_prism_launcher_path().ok().flatten());
+    let path = path.or(util::get_prism_launcher_exec().ok().flatten());
     if path.is_none() {
         return Err("PrismLauncher installation canceled.".into());
     }
 
     let path = path.unwrap();
+    let path = std::path::Path::new(&path);
 
+    let install = install_modpack(path);
+    pin_mut!(install);
+
+    while let Some(res) = install.next().await {
+        let (percentage, msg) = res.map_err(|e| format!("Error installing modpack: {}", e))?;
+        app.emit("install_progress", (0.666 + percentage / 3.0, msg))
+            .unwrap();
+    }
     Ok(())
 }
 

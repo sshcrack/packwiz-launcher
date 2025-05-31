@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { InstallType } from "../types";
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export function useInstallation() {
     const [installType, setInstallType] = useState<InstallType>("prism");
@@ -10,6 +11,9 @@ export function useInstallation() {
     const [progress, setProgress] = useState(0);
     const [progressMessage, setProgressMessage] = useState("");
     const [hasLauncher, setHasLauncher] = useState<boolean | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [showImportDialog, setShowImportDialog] = useState(false);
+    const [isNewInstallation, setIsNewInstallation] = useState(false);
 
     // Check if PrismLauncher is already installed
     useEffect(() => {
@@ -29,12 +33,24 @@ export function useInstallation() {
         checkLauncher();
     }, []);
 
-    // Installation function using Tauri commands
+    // Reset the installation state
+    const resetInstallation = () => {
+        setInstalling(false);
+        setProgress(0);
+        setProgressMessage("");
+        setError(null);
+    };
+
+    // Retry the installation after an error
+    const retryInstallation = () => {
+        setError(null);
+        startInstallation();
+    };    // Installation function using Tauri commands
     const startInstallation = async () => {
         setInstalling(true);
         setProgress(0);
         setProgressMessage("Starting installation...");
-
+        setError(null);        
         try {
             // Setup event listeners for progress updates
             const unlistenProgress = await listen<[number, string]>("install_progress", (event) => {
@@ -44,9 +60,12 @@ export function useInstallation() {
                 console.log(`Progress: ${percentage}%, Message: ${message}`);
             });
 
-            const unlistenClick = await listen("click_install", () => {
-                console.log("Manual installation required, user needs to proceed with installer");
-                setProgressMessage("Please complete the PrismLauncher installation in the opened installer");
+            const unlistenImportDialog = await listen("import_dialog", () => {
+                console.log("Import dialog is showing");
+                // Check if this is a new installation based on progress or other signals
+                const isNewInstall = !hasLauncher;
+                setIsNewInstallation(isNewInstall);
+                setShowImportDialog(true);
             });
 
             // Invoke the installation command based on type
@@ -56,21 +75,23 @@ export function useInstallation() {
                 // If using prism launcher, pass the custom path if provided
                 const customPath = installPath.trim() ? installPath : null;
                 await invoke("install_launcher", { customPath });
-            }
-
+            }            
             // Cleanup listeners after installation completes
             unlistenProgress();
-            unlistenClick();
+            unlistenImportDialog();
 
             setProgress(1);
-            setProgressMessage("Installation completed successfully!");
+            setProgressMessage("Installation completed successfully. This installer will close shortly.");
+            setTimeout(async () => {
+                await getCurrentWindow().close();
+            }, 2000);
         } catch (error) {
             console.error("Installation failed:", error);
-            setProgressMessage(`Installation failed: ${error}`);
+            // Set error state instead of just updating progress message
+            setError(`${error}`);
+            setProgressMessage("Installation failed");
         }
-    };
-
-    return {
+    };    return {
         installType,
         setInstallType,
         installPath,
@@ -79,6 +100,12 @@ export function useInstallation() {
         progress,
         progressMessage,
         hasLauncher,
-        startInstallation
+        startInstallation,
+        error,
+        retryInstallation,
+        resetInstallation,
+        showImportDialog,
+        setShowImportDialog,
+        isNewInstallation
     };
 }

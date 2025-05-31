@@ -87,7 +87,7 @@ pub fn read_metadata() -> Result<ModpackConfig, String> {
         .map(|config: ModpackConfig| config)
 }
 
-pub fn get_prism_launcher_path() -> Result<Option<String>, String> {
+pub fn get_prism_launcher_exec() -> Result<Option<String>, String> {
     let key = Hive::ClassesRoot
         .open(r"prismlauncher\shell\open\command", Security::Read)
         .ok();
