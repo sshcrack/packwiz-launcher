@@ -4,101 +4,124 @@ on:
   workflow_dispatch:
     inputs:
       icon_url:
-        description: "URL to icon"
+        description: 'URL to the ICO file'
         required: true
         type: string
 
 jobs:
   build:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: ./app
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      
+      - name: Download latest packwiz-launcher release
+        id: download-launcher
+        shell: pwsh
+        run: |
+          $repo = "sshcrack/packwiz-launcher"
+          $api_url = "https://api.github.com/repos/$repo/releases/latest"
           
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: pwsh
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $env:GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-          shared-key: "app-build"
-
-      - name: Download icon
-        shell: pwsh
-        run: |
-          $iconUrl = "${{ github.event.inputs.icon_url }}"
-          $extension = [System.IO.Path]::GetExtension($iconUrl)
-          $iconPath = "temp_icon$extension"
-
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jimminning/ConvertTo-Png/refs/heads/main/ConvertTo-Png.ps1" -OutFile ConvertTo-Png.ps1
-          Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
-
-          # Convert to PNG if not already a PNG
-          if ($extension -ne ".png") {
-            ./ConvertTo-Png $iconPath
-            $iconPath = "temp_icon.png"
+          # Get latest release info
+          $release = Invoke-RestMethod -Uri $api_url
+          
+          # Find the exe asset
+          $asset = $release.assets | Where-Object { $_.name -like "*.exe" } | Select-Object -First 1
+          
+          if ($asset) {
+            # Create directory for the downloaded file
+            New-Item -ItemType Directory -Force -Path "launcher"
+            
+            # Download the exe
+            $output_path = "launcher\packwiz-launcher.exe"
+            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $output_path
+            
+            # Set output variables
+            echo "launcher_path=$output_path" >> $env:GITHUB_OUTPUT
+            echo "Downloaded launcher version: $($release.tag_name)"
           }
-
-          echo "Icon downloaded to $iconPath"
-
-      - name: Generate Tauri icons
-        run: pnpm tauri icon ./temp_icon.png
-
-      - name: Calculate icon hash
-        id: icon-hash
+          else {
+            echo "No executable found in the latest release!"
+            exit 1
+          }
+      
+      - name: Download and extract Resource Hacker
+        id: download-reshacker
         shell: pwsh
         run: |
-          $hash = (Get-FileHash -Path temp_icon.png -Algorithm SHA256).Hash
-          echo "ICON_HASH=$hash" >> $env:GITHUB_OUTPUT
-
+          $url = "https://www.angusj.com/resourcehacker/resource_hacker.zip"
+          $output_path = "resource_hacker.zip"
+          
+          # Download Resource Hacker
+          Invoke-WebRequest -Uri $url -OutFile $output_path
+          
+          # Extract the zip
+          Expand-Archive -Path $output_path -DestinationPath "resource_hacker"
+          
+          # Verify ResourceHacker.exe exists
+          if (Test-Path "resource_hacker\ResourceHacker.exe") {
+            echo "reshacker_path=resource_hacker\ResourceHacker.exe" >> $env:GITHUB_OUTPUT
+            echo "Resource Hacker downloaded and extracted successfully"
+          }
+          else {
+            echo "ResourceHacker.exe not found in the extracted archive!"
+            exit 1
+          }
+      
+      - name: Download icon file
+        id: download-icon
+        shell: pwsh
+        run: |
+          $url = "${{ github.event.inputs.icon_url }}"
+          $output_path = "custom_icon.ico"
+          
+          # Download the icon file
+          Invoke-WebRequest -Uri $url -OutFile $output_path
+          
+          # Verify the icon file exists
+          if (Test-Path $output_path) {
+            echo "icon_path=$output_path" >> $env:GITHUB_OUTPUT
+            echo "Icon downloaded successfully"
+          }
+          else {
+            echo "Failed to download icon file!"
+            exit 1
+          }
+      
+      - name: Change launcher icon
+        id: change-icon
+        shell: pwsh
+        run: |
+          $input_exe = "${{ steps.download-launcher.outputs.launcher_path }}"
+          $output_exe = "launcher\packwiz-launcher-custom.exe"
+          $reshacker = "${{ steps.download-reshacker.outputs.reshacker_path }}"
+          $icon = "${{ steps.download-icon.outputs.icon_path }}"
+          
+          # Run Resource Hacker to change the icon
+          & $reshacker -open $input_exe -save $output_exe -action addoverwrite -res $icon -mask ICONGROUP,MAINICON
+          
+          # Verify the output file exists
+          if (Test-Path $output_exe) {
+            echo "custom_launcher_path=$output_exe" >> $env:GITHUB_OUTPUT
+            echo "Icon successfully changed"
+          }
+          else {
+            echo "Failed to create custom launcher executable!"
+            exit 1
+          }
+      
       - name: Cache build artifacts
-        id: cache-build
         uses: actions/cache@v4
         with:
-          path: src-tauri/target/release/modpack-installer.exe
-          key: ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-${{ hashFiles('src-tauri/**/*.rs', 'src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'package.json') }}
+          path: launcher\packwiz-launcher-custom.exe
+          key: ${{ runner.os }}-packwiz-launcher-${{ github.run_id }}-${{ github.run_number }}
           restore-keys: |
-            ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-
-
-      - name: Build Tauri App
-        if: steps.cache-build.outputs.cache-hit != 'true'
-        run: pnpm tauri build
-
-      - name: Upload build artifact
+            ${{ runner.os }}-packwiz-launcher-
+      
+      - name: Upload customized launcher
         uses: actions/upload-artifact@v4
         with:
-          name: modpack-installer-exe
-          path: app/src-tauri/target/release/modpack-installer.exe
-          if-no-files-found: error
+          name: packwiz-launcher-custom
+          path: ${{ steps.change-icon.outputs.custom_launcher_path }}
+          retention-days: 7
