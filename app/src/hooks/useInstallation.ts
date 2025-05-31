@@ -75,7 +75,7 @@ export function useInstallation() {
                 // If using prism launcher, pass the custom path if provided
                 const customPath = installPath.trim() ? installPath : null;
                 await invoke("install_launcher", { customPath });
-            }            
+            }
             // Cleanup listeners after installation completes
             unlistenProgress();
             unlistenImportDialog();
