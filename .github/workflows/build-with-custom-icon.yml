@@ -1,0 +1,95 @@
+name: Build with Custom Icon
+
+on:
+  workflow_dispatch:
+    inputs:
+      icon_url:
+        description: 'URL to PNG icon'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ./app
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: pwsh
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $env:GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('app/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "app/src-tauri -> target"
+          shared-key: "app-build"
+
+      - name: Download icon
+        shell: pwsh
+        run: |
+          $iconUrl = "${{ github.event.inputs.icon_url }}"
+          $iconPath = "temp_icon.png"
+          Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
+          echo "Icon downloaded to $iconPath"
+
+      - name: Generate Tauri icons
+        run: pnpm tauri icon temp_icon.png
+
+      - name: Calculate icon hash
+        id: icon-hash
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Path temp_icon.png -Algorithm SHA256).Hash
+          echo "ICON_HASH=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Cache build artifacts
+        id: cache-build
+        uses: actions/cache@v3
+        with:
+          path: app/src-tauri/target/release/modpack-installer.exe
+          key: ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-${{ hashFiles('app/src-tauri/**/*.rs', 'app/src-tauri/Cargo.toml', 'app/src-tauri/tauri.conf.json', 'app/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-
+            ${{ runner.os }}-tauri-build-
+
+      - name: Build Tauri App
+        if: steps.cache-build.outputs.cache-hit != 'true'
+        run: pnpm tauri build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: modpack-installer-exe
+          path: app/src-tauri/target/release/modpack-installer.exe
+          if-no-files-found: error

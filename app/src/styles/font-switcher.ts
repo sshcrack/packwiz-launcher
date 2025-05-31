@@ -8,9 +8,6 @@ type FontOption = 'press-start' | 'silkscreen' | 'pixelify' | 'ibm-plex';
  * @param fontOption The font option to switch to
  */
 export function switchMinecraftFont(fontOption: FontOption): void {
-    // Get the root HTML element to modify CSS variables
-    const root = document.documentElement;
-
     // Font family mapping
     let fontFamily = '';
     let fontSizeAdjust = '1';
