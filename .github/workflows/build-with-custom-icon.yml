@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       icon_url:
-        description: "URL to PNG icon"
+        description: "URL to icon"
         required: true
         type: string
 
@@ -59,8 +59,18 @@ jobs:
         shell: pwsh
         run: |
           $iconUrl = "${{ github.event.inputs.icon_url }}"
-          $iconPath = "temp_icon.png"
+          $extension = [System.IO.Path]::GetExtension($iconUrl)
+          $iconPath = "temp_icon$extension"
+
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jimminning/ConvertTo-Png/refs/heads/main/ConvertTo-Png.ps1" -OutFile ConvertTo-Png.ps1
           Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
+
+          # Convert to PNG if not already a PNG
+          if ($extension -ne ".png") {
+            ./ConvertTo-Png $iconPath
+            $iconPath = "temp_icon.png"
+          }
+
           echo "Icon downloaded to $iconPath"
 
       - name: Generate Tauri icons

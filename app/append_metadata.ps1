@@ -5,10 +5,12 @@ param(
 
 # Define the ModpackConfig as JSON
 $modpackConfig = @{
-    title = "Minecolonies"
+    name = "Minecolonies"
+    author = "Minecolonies Team"
     description = "A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements."
     logo_url = "https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg"
     packwiz_url = "http://localhost:3000"
+    base_pack_url = "http://localhost:3001/base_modpack.zip"
     theme = "dark"
     background = "deepslate"
 }
