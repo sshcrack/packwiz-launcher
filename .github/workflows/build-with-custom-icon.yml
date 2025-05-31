@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       icon_url:
-        description: 'URL to PNG icon'
+        description: "URL to PNG icon"
         required: true
         type: string
 
@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
@@ -36,7 +36,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path)" >> $env:GITHUB_OUTPUT
 
       - name: Setup pnpm cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('app/pnpm-lock.yaml') }}
@@ -75,7 +75,7 @@ jobs:
 
       - name: Cache build artifacts
         id: cache-build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: app/src-tauri/target/release/modpack-installer.exe
           key: ${{ runner.os }}-tauri-build-${{ steps.icon-hash.outputs.ICON_HASH }}-${{ hashFiles('app/src-tauri/**/*.rs', 'app/src-tauri/Cargo.toml', 'app/src-tauri/tauri.conf.json', 'app/package.json') }}
@@ -88,7 +88,7 @@ jobs:
         run: pnpm tauri build
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: modpack-installer-exe
           path: app/src-tauri/target/release/modpack-installer.exe
