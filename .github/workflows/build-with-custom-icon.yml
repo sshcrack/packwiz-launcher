@@ -97,17 +97,30 @@ jobs:
           $output_exe = "launcher\packwiz-launcher-custom.exe"
           $reshacker = "${{ steps.download-reshacker.outputs.reshacker_path }}"
           $icon = "${{ steps.download-icon.outputs.icon_path }}"
-          
+
           # Run Resource Hacker to change the icon
           & $reshacker -open $input_exe -save $output_exe -action addoverwrite -res $icon -mask ICONGROUP,MAINICON
-          
-          # Verify the output file exists
-          if (Test-Path $output_exe) {
-            echo "custom_launcher_path=$output_exe" >> $env:GITHUB_OUTPUT
-            echo "Icon successfully changed"
+
+          # Wait for up to 20 seconds for the file to appear
+          $timeoutSeconds = 20
+          $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+          $fileExists = $false
+
+          while ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
+            if (Test-Path $output_exe) {
+              $fileExists = $true
+              break
+            }
+            Start-Sleep -Milliseconds 500
           }
-          else {
-            echo "Failed to create custom launcher executable!"
+          $stopwatch.Stop()
+
+          # Verify the output file exists within timeout
+          if ($fileExists) {
+            echo "custom_launcher_path=$output_exe" >> $env:GITHUB_OUTPUT
+            echo "Icon successfully changed in $($stopwatch.Elapsed.TotalSeconds) seconds"
+          } else {
+            echo "Failed to create custom launcher executable within $timeoutSeconds seconds!"
             exit 1
           }
       
