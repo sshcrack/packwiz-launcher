@@ -5,11 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:worker": "wrangler dev --local",
     "build": "tsc && vite build",
     "lint": "eslint --fix",
-    "preview": "vite preview",
-    "deploy": "pnpm build && wrangler deploy"
+    "preview": "vite preview"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -32,7 +30,12 @@
     "@react-aria/visually-hidden": "3.8.22",
     "@react-types/shared": "3.29.0",
     "clsx": "2.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "framer-motion": "11.15.0",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router-dom": "6.23.0",
@@ -40,10 +43,12 @@
     "tailwindcss": "3.4.16"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240320.0",
     "@eslint/compat": "1.2.8",
     "@eslint/eslintrc": "3.3.1",
     "@eslint/js": "9.25.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.11",
     "@types/node": "20.5.7",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
@@ -65,7 +70,6 @@
     "prettier": "3.5.3",
     "typescript": "5.6.3",
     "vite": "5.2.0",
-    "vite-tsconfig-paths": "4.3.2",
-    "wrangler": "^3.34.2"
+    "vite-tsconfig-paths": "4.3.2"
   }
 }

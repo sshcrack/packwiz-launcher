@@ -7,9 +7,10 @@ import { ModpackConfig } from '@/types/modpack';
 interface ModpackFormProps {
     onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconUrl: string | null) => void;
     isLoading: boolean;
+    processingStep?: string;
 }
 
-export default function ModpackForm({ onSubmit, isLoading }: ModpackFormProps) {
+export default function ModpackForm({ onSubmit, isLoading, processingStep }: ModpackFormProps) {
     const [useCustomIcon, setUseCustomIcon] = useState(false);
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
     const [customIconUrl, setCustomIconUrl] = useState<string | null>(null); const [formData, setFormData] = useState<ModpackConfig>({
@@ -29,23 +30,19 @@ export default function ModpackForm({ onSubmit, isLoading }: ModpackFormProps) {
             ...prev,
             [name]: value
         }));
-    };
-
-    const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    }; const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0];
 
-            // Check if file is already in .ico format
-            if (file.type === 'image/x-icon') {
+            // Check if file is in .ico format
+            if (file.type === 'image/x-icon' || file.name.toLowerCase().endsWith('.ico')) {
                 setCustomIconFile(file);
                 // Create a temporary URL for preview
                 setCustomIconUrl(URL.createObjectURL(file));
             } else {
-                // Here we'd normally convert to .ico, but for now just accept the file
-                // and assume it will be converted server-side or by another utility
-                setCustomIconFile(file);
-                setCustomIconUrl(URL.createObjectURL(file));
-                console.warn('File is not in .ico format. It will need to be converted.');
+                alert('Please select a valid .ico file');
+                // Clear the input
+                e.target.value = '';
             }
         }
     };
@@ -189,8 +186,7 @@ export default function ModpackForm({ onSubmit, isLoading }: ModpackFormProps) {
                 <div>
                     <label htmlFor="background_block" className="block text-sm font-medium mb-1">
                         Background Block (Minecraft block name)
-                    </label>
-                    <Input
+                    </label>                    <Input
                         id="background_block"
                         name="background"
                         required
@@ -218,14 +214,13 @@ export default function ModpackForm({ onSubmit, isLoading }: ModpackFormProps) {
                 </div>
 
                 {useCustomIcon && (
-                    <div className="mt-4">
-                        <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
-                            Upload Icon (.ico file recommended)
-                        </label>
+                    <div className="mt-4">                        <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
+                        Upload Icon (.ico file only)
+                    </label>
                         <Input
                             id="iconFile"
                             type="file"
-                            accept=".ico,.png,.jpg,.jpeg"
+                            accept=".ico"
                             onChange={handleIconFileChange}
                             className="w-full"
                         />
@@ -237,12 +232,19 @@ export default function ModpackForm({ onSubmit, isLoading }: ModpackFormProps) {
                         )}
                     </div>
                 )}
-            </div>
-
-            <div className="pt-4">
+            </div>            <div className="pt-4">
                 <Button type="submit" disabled={isLoading} className="w-full">
-                    {isLoading ? 'Generating Installer...' : 'Generate Installer'}
+                    {isLoading
+                        ? processingStep
+                            ? `${processingStep}`
+                            : 'Generating Installer...'
+                        : 'Generate Installer'}
                 </Button>
+                {isLoading && (
+                    <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
+                        <div className="bg-blue-600 h-1.5 rounded-full animate-pulse w-full"></div>
+                    </div>
+                )}
             </div>
         </form>
     );

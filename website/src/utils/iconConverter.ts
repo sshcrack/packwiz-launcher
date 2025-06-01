@@ -1,10 +1,9 @@
 /**
- * Utility for client-side icon handling and conversion
+ * Utility for client-side icon handling
  * 
- * This module handles the conversion of icon files to the ICO format
- * and uploads them for use with the GitHub Actions workflow.
+ * This module handles the validation and upload of ICO format icon files
+ * for use with the GitHub Actions workflow.
  */
-import { canConvertClientSide, convertToIco } from './iconUtils';
 
 /**
  * Converts an image file to a data URL
@@ -27,43 +26,28 @@ export function isIcoFile(file: File): boolean {
 
 /**
  * Uploads an icon file and returns a URL to the uploaded file
- * If the file is not already in .ico format, it will be converted first
+ * Only .ico files are accepted
  */
 export async function uploadIconFile(file: File): Promise<string> {
-  let fileToUpload = file;
-  
-  // If the file is not in .ico format, we need to convert it
+  // Validate that the file is in .ico format
   if (!isIcoFile(file)) {
-    // Check if we can do client-side conversion
-    if (canConvertClientSide()) {
-      console.log('Converting icon to .ico format on client-side...');
-      const icoBlob = await convertToIco(file);
-      fileToUpload = new File([icoBlob], file.name.replace(/\.[^/.]+$/, '') + '.ico', {
-        type: 'image/x-icon'
-      });
-    } else {
-      // For server-side conversion, we'll just rename the file for now
-      console.warn('Client-side conversion not supported, using server-side conversion instead');
-      fileToUpload = new File([file], file.name.replace(/\.[^/.]+$/, '') + '.ico', {
-        type: 'image/x-icon'
-      });
-    }
+    throw new Error('Only .ico files are supported. Please convert your image to .ico format before uploading.');
   }
-  
+
   // Create FormData
   const formData = new FormData();
-  formData.append('icon', fileToUpload);
-  
-  // Upload the file to our API endpoint
+  formData.append('icon', file);
+
+  // Upload the file to our Express server endpoint
   const response = await fetch('/api/upload-icon', {
     method: 'POST',
     body: formData,
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to upload icon: ${await response.text()}`);
   }
-  
+
   const data = await response.json();
   return data.url;
 }

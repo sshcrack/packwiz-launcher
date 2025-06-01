@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@heroui/button';
-import { Link } from '@heroui/link';
 import ModpackForm from '@/components/ModpackForm';
 import { ModpackConfig } from '@/types/modpack';
 import { appendDataToExecutable, downloadFile, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
-import { uploadIconFile, isIcoFile } from '@/utils/iconConverter';
+import { uploadIconFile } from '@/utils/iconConverter';
+import { Button } from '@heroui/button';
+import { Link } from '@heroui/link';
+import { useState } from 'react';
 
 export default function GeneratorPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,8 +15,8 @@ export default function GeneratorPage() {
   const [processingStep, setProcessingStep] = useState<string>('');
 
   const handleFormSubmit = async (
-    config: ModpackConfig, 
-    useCustomIcon: boolean, 
+    config: ModpackConfig,
+    useCustomIcon: boolean,
     customIconUrl: string | null
   ) => {
     setIsLoading(true);
@@ -24,10 +24,10 @@ export default function GeneratorPage() {
     setExecutableUrl(null);
     setExecutableBlob(null);
     setModpackName(config.name);
-    
+
     try {
       let executableArrayBuffer: ArrayBuffer;
-      
+
       if (useCustomIcon && customIconUrl) {
         setProcessingStep('Converting and uploading icon...');
         let iconBlob: Blob;
@@ -36,16 +36,16 @@ export default function GeneratorPage() {
         } else {
           iconBlob = await fetch(customIconUrl).then(r => r.blob());
         }
-        
+
         const iconFile = new File([iconBlob], 'icon.ico', { type: 'image/x-icon' });
         const iconUrl = await uploadIconFile(iconFile);
-          
+
         setProcessingStep('Triggering GitHub workflow...');
         const workflowResponse = await triggerGitHubWorkflow(iconUrl);
-        
+
         setProcessingStep('Building custom installer (this may take a few minutes)...');
         const artifactUrl = await pollWorkflowCompletion(workflowResponse.id);
-        
+
         setProcessingStep('Downloading custom installer...');
         executableArrayBuffer = await downloadFile(artifactUrl);
       } else {
@@ -53,12 +53,12 @@ export default function GeneratorPage() {
         const latestReleaseUrl = await getLatestReleaseArtifact();
         executableArrayBuffer = await downloadFile(latestReleaseUrl);
       }
-      
+
       setProcessingStep('Processing installer with your modpack configuration...');
       const jsonData = JSON.stringify(config);
       const resultBlob = appendDataToExecutable(executableArrayBuffer, jsonData);
       const downloadUrl = URL.createObjectURL(resultBlob);
-      
+
       setExecutableUrl(downloadUrl);
       setExecutableBlob(resultBlob);
       setProcessingStep('');
@@ -88,18 +88,18 @@ export default function GeneratorPage() {
         <h1 className="text-3xl font-bold mb-2">Minecraft Modpack Installer Generator</h1>
         <p className="text-lg">Create custom installers for your Minecraft modpacks</p>
       </div>
-      
+
       {executableUrl ? (
         <div className="max-w-2xl mx-auto bg-green-50 dark:bg-green-900/20 p-6 rounded-lg shadow-md">
           <h2 className="text-2xl font-bold mb-4 text-green-700 dark:text-green-400">Installer Generated Successfully!</h2>
           <p className="mb-4">Your modpack installer has been created. Click the button below to download it.</p>
-          
+
           <Button onClick={handleDownload} className="w-full">
             Download Installer
           </Button>
-          
+
           <div className="mt-4 text-center">
-            <button 
+            <button
               onClick={() => {
                 setExecutableUrl(null);
                 setExecutableBlob(null);
@@ -118,7 +118,7 @@ export default function GeneratorPage() {
               <p>{error}</p>
             </div>
           )}
-          
+
           {isLoading && processingStep && (
             <div className="max-w-2xl mx-auto mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-blue-700 dark:text-blue-400">
               <h3 className="font-bold">Processing</h3>
@@ -128,13 +128,13 @@ export default function GeneratorPage() {
               </div>
             </div>
           )}
-          
+
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
             <ModpackForm onSubmit={handleFormSubmit} isLoading={isLoading} />
           </div>
         </>
       )}
-      
+
       <div className="mt-12 max-w-2xl mx-auto text-sm text-gray-600 dark:text-gray-400">
         <h3 className="font-medium mb-2">How it works:</h3>
         <ol className="list-decimal pl-5 space-y-1">

@@ -7,7 +7,7 @@ export interface ModpackConfig {
   packwiz_url: string;
   base_pack_url: string;
   theme: 'dark' | 'light';
-  background: string;
+  background: string; // This field is named 'background' in the API but refers to a Minecraft block
 }
 
 // GitHub Actions workflow interface

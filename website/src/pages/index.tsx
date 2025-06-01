@@ -15,8 +15,8 @@ export default function IndexPage() {
   const [processingStep, setProcessingStep] = useState<string>('');
 
   const handleFormSubmit = async (
-    config: ModpackConfig, 
-    useCustomIcon: boolean, 
+    config: ModpackConfig,
+    useCustomIcon: boolean,
     customIconUrl: string | null
   ) => {
     setIsLoading(true);
@@ -24,12 +24,12 @@ export default function IndexPage() {
     setExecutableUrl(null);
     setExecutableBlob(null);
     setModpackName(config.name);
-    
+
     try {
       let executableArrayBuffer: ArrayBuffer;
-      
+
       if (useCustomIcon && customIconUrl) {
-        setProcessingStep('Converting and uploading icon...');
+        setProcessingStep('Uploading icon...');
         // Convert to blob if it's a data URL
         let iconBlob: Blob;
         if (customIconUrl.startsWith('blob:') || customIconUrl.startsWith('data:')) {
@@ -38,21 +38,21 @@ export default function IndexPage() {
           // It's already a URL to an uploaded file
           iconBlob = await fetch(customIconUrl).then(r => r.blob());
         }
-        
+
         // Create a File object from the blob
         const iconFile = new File([iconBlob], 'icon.ico', { type: 'image/x-icon' });
-        
+
         // Upload the icon
         const iconUrl = await uploadIconFile(iconFile);
-          
+
         setProcessingStep('Triggering GitHub workflow...');
         // Trigger GitHub workflow with custom icon
         const workflowResponse = await triggerGitHubWorkflow(iconUrl);
-        
+
         setProcessingStep('Building custom installer (this may take a few minutes)...');
         // Poll for workflow completion
         const artifactUrl = await pollWorkflowCompletion(workflowResponse.id);
-        
+
         setProcessingStep('Downloading custom installer...');
         // Download the artifact
         executableArrayBuffer = await downloadFile(artifactUrl);
@@ -62,17 +62,17 @@ export default function IndexPage() {
         const latestReleaseUrl = await getLatestReleaseArtifact();
         executableArrayBuffer = await downloadFile(latestReleaseUrl);
       }
-      
+
       setProcessingStep('Processing installer with your modpack configuration...');
       // Convert config to JSON
       const jsonData = JSON.stringify(config);
-      
+
       // Append JSON data to the executable - client-side operation
       const resultBlob = appendDataToExecutable(executableArrayBuffer, jsonData);
-      
+
       // Create a download URL
       const downloadUrl = URL.createObjectURL(resultBlob);
-      
+
       setExecutableUrl(downloadUrl);
       setExecutableBlob(resultBlob);
       setProcessingStep('');
@@ -110,18 +110,18 @@ export default function IndexPage() {
             Uses direct GitHub API integration for faster performance
           </p>
         </div>
-        
+
         {executableUrl ? (
           <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg shadow-md">
             <h2 className="text-2xl font-bold mb-4 text-green-700 dark:text-green-400">Installer Generated Successfully!</h2>
             <p className="mb-4">Your modpack installer has been created. Click the button below to download it.</p>
-            
+
             <Button onClick={handleDownload} className="w-full">
               Download Installer
             </Button>
-            
+
             <div className="mt-4 text-center">
-              <button 
+              <button
                 onClick={() => {
                   setExecutableUrl(null);
                   setExecutableBlob(null);
@@ -140,7 +140,7 @@ export default function IndexPage() {
                 <p>{error}</p>
               </div>
             )}
-            
+
             {isLoading && processingStep && (
               <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-blue-700 dark:text-blue-400">
                 <h3 className="font-bold">Processing</h3>
@@ -150,13 +150,17 @@ export default function IndexPage() {
                 </div>
               </div>
             )}
-            
+
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-              <ModpackForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+              <ModpackForm
+                onSubmit={handleFormSubmit}
+                isLoading={isLoading}
+                processingStep={processingStep}
+              />
             </div>
           </>
         )}
-        
+
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
             <h3 className="text-xl font-semibold mb-2">Custom Branding</h3>
@@ -164,14 +168,14 @@ export default function IndexPage() {
               Add your own logo, Minecraft block background, and theme to create a unique installer experience.
             </p>
           </div>
-          
+
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
             <h3 className="text-xl font-semibold mb-2">Easy to Use</h3>
             <p>
               Simple form interface to generate custom installers without any technical knowledge.
             </p>
           </div>
-          
+
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
             <h3 className="text-xl font-semibold mb-2">Packwiz Integration</h3>
             <p>
@@ -179,7 +183,7 @@ export default function IndexPage() {
             </p>
           </div>
         </div>
-        
+
         <div className="mt-8 text-sm text-gray-600 dark:text-gray-400">
           <h3 className="font-medium mb-2">How it works:</h3>
           <ol className="list-decimal pl-5 space-y-1">
@@ -193,7 +197,7 @@ export default function IndexPage() {
             Most operations are performed directly client-side, with server functions only used when GitHub authentication is required.
           </p>
         </div>
-        
+
         <div className="mt-8 text-center">
           <Button
             size="md"
