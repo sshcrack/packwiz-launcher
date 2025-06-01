@@ -4,7 +4,7 @@ import { GitHubArtifactsResponse, GitHubWorkflowResponse } from '@/types/modpack
 
 // GitHub repository used for API calls
 const GITHUB_REPO = 'sshcrack/packwiz-launcher';
-export const API_BASE_URL = import.meta.env.PROD ? "https://packwiz-launcher.sshcrack.me" : 'https://tunnel.sshcrack.me';
+export const API_BASE_URL = import.meta.env.PROD ? "https://api.packwiz-launcher.sshcrack.me" : 'https://tunnel.sshcrack.me';
 
 /**
  * Trigger a GitHub workflow with an optional icon
