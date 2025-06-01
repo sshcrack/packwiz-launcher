@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { Button } from '@heroui/button';
-import { Link } from '@heroui/link';
 import ModpackForm from '@/components/ModpackForm';
 import { ModpackConfig } from '@/types/modpack';
 import { appendDataToExecutable, downloadFile, downloadFileBlob, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
 import { isIcoFile } from '@/utils/iconConverter';
-import { BlobReader, ZipReader } from "@zip.js/zip.js"
+import { Button } from '@heroui/button';
+import { Link } from '@heroui/link';
+import { BlobReader, ZipReader } from "@zip.js/zip.js";
+import { useState } from 'react';
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -127,7 +127,7 @@ export default function IndexPage() {
             <h2 className="text-2xl font-bold mb-4 text-green-700 dark:text-green-400">Installer Generated Successfully!</h2>
             <p className="mb-4">Your modpack installer has been created. Click the button below to download it.</p>
 
-            <Button onClick={handleDownload} className="w-full">
+            <Button onPress={handleDownload} className="w-full">
               Download Installer
             </Button>
 

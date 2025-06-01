@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { ModpackConfig } from '@/types/modpack';
+import { fileToDataUrl } from '@/utils/iconConverter';
 import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { Switch } from '@heroui/switch';
-import { ModpackConfig } from '@/types/modpack';
-import { fileToDataUrl } from '@/utils/iconConverter';
+import init, { convert_to_ico } from "img-to-ico";
+import { useRef, useState } from 'react';
 
 interface ModpackFormProps {
     onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconFile: File | null) => void;
@@ -13,8 +14,11 @@ interface ModpackFormProps {
 
 export default function ModpackForm({ onSubmit, isLoading, processingStep }: ModpackFormProps) {
     const [useCustomIcon, setUseCustomIcon] = useState(false);
+    const [initialized, setInitialized] = useState(false);
+    const initializing = useRef(false);
+
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
-    const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null);const [formData, setFormData] = useState<ModpackConfig>({
+    const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null); const [formData, setFormData] = useState<ModpackConfig>({
         name: 'Minecolonies',
         author: 'Minecolonies Team',
         description: 'A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.',
@@ -31,7 +35,9 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
             ...prev,
             [name]: value
         }));
-    };    const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    };
+
+    const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0];
 
@@ -42,9 +48,20 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                 const previewUrl = await fileToDataUrl(file);
                 setCustomIconPreviewUrl(previewUrl);
             } else {
-                alert('Please select a valid .ico file');
-                // Clear the input
-                e.target.value = '';
+                file.arrayBuffer().then(async (buffer) => {
+                    // Convert to .ico format using wasm
+                    const icoBuffer = convert_to_ico(new Uint8Array(buffer), file.type);
+                    const icoBlob = new Blob([icoBuffer], { type: 'image/x-icon' });
+                    const icoFile = new File([icoBlob], 'icon.ico', { type: 'image/x-icon' });
+
+                    setCustomIconFile(icoFile);
+                    // Create a temporary URL for preview
+                    const previewUrl = await fileToDataUrl(icoFile);
+                    setCustomIconPreviewUrl(previewUrl);
+                }).catch(err => {
+                    console.error('Error converting file to ICO format:', err);
+                    alert("Failed to convert: " + err);
+                });
             }
         }
     };
@@ -198,31 +215,43 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <Switch
                         id="useCustomIcon"
                         checked={useCustomIcon}
-                        onChange={() => setUseCustomIcon(!useCustomIcon)}
+                        onChange={() => {
+                            setUseCustomIcon(!useCustomIcon)
+                            if (initializing.current) return;
+
+                            init().then(() => setInitialized(true))
+                            initializing.current = true;
+                        }}
                     />
                     <label htmlFor="useCustomIcon" className="text-sm font-medium">
                         Use custom icon for installer
                     </label>
                 </div>                {useCustomIcon && (
-                    <div className="mt-4">                        <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
-                        Upload Icon (.ico file only)
-                    </label>
-                        <Input
-                            id="iconFile"
-                            type="file"
-                            accept=".ico"
-                            onChange={handleIconFileChange}
-                            className="w-full"
-                        />
-                        {customIconPreviewUrl && (
-                            <div className="mt-2">
-                                <p className="text-sm">Icon Preview:</p>
-                                <img src={customIconPreviewUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
-                            </div>
-                        )}
-                    </div>
+                    !initialized ? (
+                        <label>Initializing, please wait</label>
+                    ) : (
+                        <div className="mt-4">
+                            <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
+                                Upload Icon (image must be square and under 1MB)
+                            </label>
+                            <Input
+                                id="iconFile"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleIconFileChange}
+                                className="w-full"
+                            />
+                            {customIconPreviewUrl && (
+                                <div className="mt-2">
+                                    <p className="text-sm">Icon Preview:</p>
+                                    <img src={customIconPreviewUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
+                                </div>
+                            )}
+                        </div>
+                    )
                 )}
-            </div>            <div className="pt-4">
+            </div>
+            <div className="pt-4">
                 <Button type="submit" disabled={isLoading} className="w-full">
                     {isLoading
                         ? processingStep

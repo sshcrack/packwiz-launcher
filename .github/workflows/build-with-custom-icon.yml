@@ -127,10 +127,12 @@ jobs:
       - name: Cache build artifacts
         uses: actions/cache@v4
         with:
-          path: launcher\packwiz-launcher-custom.exe
-          key: ${{ runner.os }}-packwiz-launcher-${{ github.run_id }}-${{ github.run_number }}
+          path: |
+            resource_hacker\ResourceHacker.exe
+            launcher\packwiz-launcher.exe
+          key: ${{ runner.os }}-packwiz-resources-${{ github.run_id }}-${{ github.run_number }}
           restore-keys: |
-            ${{ runner.os }}-packwiz-launcher-
+            ${{ runner.os }}-packwiz-resources-
 
       - name: Upload customized launcher
         uses: actions/upload-artifact@v4

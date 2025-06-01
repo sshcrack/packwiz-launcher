@@ -36,18 +36,11 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Create icons directory specifically for icon uploads
-const iconsDir = path.join(uploadsDir, 'icons');
-if (!fs.existsSync(iconsDir)) {
-    fs.mkdirSync(iconsDir, { recursive: true });
-}
-
 // Setup file handling functions for icon uploads
 const storeIcon = async (file: File) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = '.ico';
-    const filename = `icon-${uniqueSuffix}${extension}`;
-    const filepath = path.join(iconsDir, filename);
+    const filename = `icon-${uniqueSuffix}.ico`;
+    const filepath = path.join(uploadsDir, filename);
 
     const buffer = await file.arrayBuffer();
     await Bun.write(filepath, buffer);
@@ -63,11 +56,54 @@ const app = new Elysia()
     .use(cors({
         origin: '*' // Allow all origins for client-side development
     }))
-    // Make uploads directory accessible
-    .use(staticPlugin({
-        assets: uploadsDir,
-        prefix: '/uploads'
-    })).post('/trigger-workflow', async ({ request, set }) => {
+    .onAfterResponse(({ set }) => {
+        // Check if we need to delete a file after sending the response
+        if (set.headers['on-response-sent'] && set.headers['file-to-delete']) {
+            const filename = set.headers['file-to-delete'] as string;
+            const filepath = path.join(uploadsDir, filename);
+            try {
+                fs.unlinkSync(filepath);
+                console.log(`Deleted file: ${filename}`);
+            } catch (error) {
+                console.error(`Error deleting file ${filename}:`, error);
+            }
+        }
+    })
+    .get('/uploads/:filename', async ({ params, set }) => {
+        try {
+            const { filename } = params;
+            const filepath = path.join(uploadsDir, filename);
+
+            // Check if file exists
+            if (!fs.existsSync(filepath)) {
+                set.status = 404;
+                return { error: 'File not found' };
+            }
+
+            // Read file content
+            const fileContent = await Bun.file(filepath).arrayBuffer();
+
+            // Set appropriate headers for ico file
+            set.headers['Content-Type'] = 'image/x-icon';
+
+            // Create a response with the file content
+            const response = new Response(fileContent);
+            // Use a response interceptor to delete the file after the response is sent
+            set.headers['on-response-sent'] = 'true'; // Add a custom header to trigger the response hook
+
+            // Store just the filename for deletion in a custom property
+            set.headers['file-to-delete'] = filename;
+
+            response.headers.set('Connection', 'close'); // Ensure connection is closed after response
+
+            return response;
+        } catch (error: any) {
+            console.error('Error serving icon file:', error);
+            set.status = 500;
+            return { error: error.message };
+        }
+    })
+    .post('/trigger-workflow', async ({ request, set }) => {
         try {
             const form = await request.formData();
             let iconUrl = null;
@@ -92,7 +128,7 @@ const app = new Elysia()
                 const { filename } = await storeIcon(iconFile);
 
                 // Create the URL to access the file
-                iconUrl = `${process.env.BASE_URL}/uploads/icons/${filename}`;
+                iconUrl = `${process.env.BASE_URL}/uploads/${filename}`;
             }
 
             // Create inputs object with icon URL if available
