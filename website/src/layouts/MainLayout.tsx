@@ -1,10 +1,12 @@
 import { Link } from '@heroui/link';
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from '@heroui/navbar';
 import { useEffect, useState } from 'react';
-import { Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
 
-export default function MainLayout() {
-  const location = useLocation();
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function MainLayout({ children }: MainLayoutProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -12,18 +14,14 @@ export default function MainLayout() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar position="sticky">
-        <NavbarBrand>          <RouterLink to="/" className="font-bold text-xl">
-          Minecraft Modpack Installer
-        </RouterLink>
+    <div className="min-h-screen flex flex-col">      <Navbar position="sticky">
+        <NavbarBrand>
+          <div className="font-bold text-xl">
+            Minecraft Modpack Installer
+          </div>
         </NavbarBrand>
 
-        <NavbarContent justify="end">          <NavbarItem isActive={location.pathname === '/'}>
-          <Link as={RouterLink} to="/">
-            Home
-          </Link>
-        </NavbarItem>
+        <NavbarContent justify="end">
           <NavbarItem>
             <Link
               href="https://github.com/sshcrack/packwiz-launcher"
@@ -37,7 +35,7 @@ export default function MainLayout() {
       </Navbar>
 
       <main className="flex-grow">
-        {mounted && <Outlet />}
+        {mounted && children}
       </main>
 
       <footer className="py-6 px-4 bg-gray-100 dark:bg-gray-900 text-center">
