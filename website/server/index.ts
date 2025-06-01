@@ -24,7 +24,7 @@ if (!process.env.BASE_URL) {
 
 // Define the GitHub repository and workflow ID
 const GITHUB_REPO = 'sshcrack/packwiz-launcher';
-const WORKFLOW_ID = '165435937';
+const WORKFLOW_ID = 'build-with-custom-icon.yml';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -159,6 +159,12 @@ const app = new Elysia()
                 set.status = response.status;
                 return { error: `GitHub API error: ${errorText}` };
             }
+
+            await new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    resolve({ message: 'Workflow triggered successfully' });
+                }, 1000);
+            });
 
             // Get the workflow run ID
             const runsResponse = await fetch(
