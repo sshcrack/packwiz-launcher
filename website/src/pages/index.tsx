@@ -3,8 +3,9 @@ import { Button } from '@heroui/button';
 import { Link } from '@heroui/link';
 import ModpackForm from '@/components/ModpackForm';
 import { ModpackConfig } from '@/types/modpack';
-import { appendDataToExecutable, downloadFile, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
+import { appendDataToExecutable, downloadFile, downloadFileBlob, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
 import { isIcoFile } from '@/utils/iconConverter';
+import { BlobReader, ZipReader } from "@zip.js/zip.js"
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -36,14 +37,35 @@ export default function IndexPage() {
 
         setProcessingStep('Triggering GitHub workflow with custom icon...');
         // Trigger GitHub workflow with custom icon
-        const workflowResponse = await triggerGitHubWorkflow(customIconFile);        setProcessingStep('Building custom installer (this may take a few minutes)...');
+        const workflowResponse = await triggerGitHubWorkflow(customIconFile);
+
+        setProcessingStep('Building custom installer (this may take a few minutes)...');
         // Poll for workflow completion
         const artifactUrl = await pollWorkflowCompletion(workflowResponse.id);
         console.log('Downloading artifact from:', artifactUrl);
 
         setProcessingStep('Downloading custom installer...');
         // Download the artifact
-        executableArrayBuffer = await downloadFile(artifactUrl);
+        const rawZipFile = await downloadFileBlob(artifactUrl);
+
+        setProcessingStep('Reading zip file...');
+        const zipFileReader = new BlobReader(rawZipFile)
+        const zipReader = new ZipReader(zipFileReader);
+        const installerEntry = (await zipReader.getEntries()).shift()
+
+
+        if (!installerEntry || !installerEntry.getData) {
+          throw new Error('No installer found in the zip file or invalid data');
+        }
+
+        const stream = new TransformStream();
+        const streamPromise = new Response(stream.readable).arrayBuffer();
+
+        await installerEntry.getData(stream.writable);
+        await zipReader.close()
+
+        setProcessingStep('Converting installer to ArrayBuffer...');
+        executableArrayBuffer = await streamPromise;
       } else {
         setProcessingStep('Downloading default installer...');
         // Use default executable from latest release - direct GitHub API call

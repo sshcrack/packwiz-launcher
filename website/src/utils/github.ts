@@ -116,6 +116,23 @@ export async function downloadFile(url: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
+
+/**
+ * Download a file from a URL
+ * Works for both public URLs and artifact URLs through our server
+ */
+export async function downloadFileBlob(url: string): Promise<Blob> {
+  // If this is a URL to our server's download-artifact endpoint
+  // just pass it through directly as we've already formatted it correctly
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to download file: ${await response.text()}`);
+  }
+
+  return response.blob();
+}
+
 /**
  * Append JSON data to an executable file
  * 
