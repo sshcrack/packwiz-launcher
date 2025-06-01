@@ -7,8 +7,7 @@ export default defineConfig({
   plugins: [
     react(), tsconfigPaths()
   ],
-  base: "/packwiz-launcher/",
-	optimizeDeps:{
+  optimizeDeps:{
 		exclude:["img-to-ico"]
 	}
 });
