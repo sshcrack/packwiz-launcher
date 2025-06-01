@@ -1,62 +1,27 @@
 use std::path::Path;
+use std::process::Command;
 
 use async_stream::stream;
 use configparser::ini::Ini;
 use configparser::ini::WriteOptions;
-use directories::BaseDirs;
-use directories::UserDirs;
 use download_extract_progress::{download, extract_zip};
 use futures_core::Stream;
 use futures_util::pin_mut;
 use futures_util::StreamExt;
 use image::ImageReader;
-use mslnk::ShellLink;
 use tokio::fs;
-use tokio::process::Command;
 use url::Url;
 use uuid::Uuid;
 
 use crate::deletion_guard::TemporaryFileCleaner;
+use crate::platform::create_shortcut;
 use crate::util;
 
-async fn create_shortcut(
-    prism_exec: &Path,
-    instance_dir: &Path,
-    config_name: &str,
-    shortcut_icon: &Path,
-) -> Result<(), anyhow::Error> {
-    let instance_id = instance_dir
-        .file_name()
-        .and_then(|f| f.to_str())
-        .ok_or_else(|| anyhow::anyhow!("Failed to get instance directory name"))?;
-
-    let mut lnk = ShellLink::new(prism_exec)?;
-    lnk.set_arguments(Some(format!("-l \"{}\"", instance_id)));
-    lnk.set_icon_location(Some(shortcut_icon.to_string_lossy().to_string()));
-
-    if let Some(user_dirs) = UserDirs::new() {
-        if let Some(desktop_dir) = user_dirs.desktop_dir() {
-            lnk.create_lnk(desktop_dir.join(format!("{}.lnk", config_name)))?;
-            log::info!("Created shortcut on desktop: {:?}", desktop_dir);
-        } else {
-            log::warn!("No desktop directory found, skipping link creation");
-        }
-    }
-
-    if let Some(base_dirs) = BaseDirs::new() {
-        let app_data = base_dirs
-            .data_dir()
-            .join("Microsoft/Windows/Start Menu/Programs");
-        lnk.create_lnk(app_data.join(format!("{}.lnk", config_name)))?;
-        log::info!("Created shortcut in app data: {:?}", app_data);
-    }
-
-    Ok(())
-}
-
 pub fn install_modpack(
+    prism_data: &Path,
     prism_exec: &Path,
 ) -> impl Stream<Item = Result<(f32, String), anyhow::Error>> {
+    let prism_data = prism_data.to_owned();
     let prism_exec = prism_exec.to_owned();
     stream! {
         log::info!("Starting modpack installation");
@@ -73,18 +38,7 @@ pub fn install_modpack(
         let config = config.unwrap();
         log::info!("Using modpack config with base URL: {}", config.base_pack_url);
 
-        let parent_path = prism_exec.parent()
-            .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory of Prism Launcher path"));
-
-        if let Err(e) = parent_path {
-            log::error!("Failed to get log path: {}", e);
-            yield Err(e);
-            return;
-        }
-
-        let parent_path = parent_path.unwrap();
-        let instances_dir = parent_path.join("instances");
-
+        let instances_dir = prism_data.join("instances");
         let mut instance_dir = instances_dir.join(&config.name);
         if instance_dir.exists() {
             let mut found = false;
@@ -221,7 +175,7 @@ pub fn install_modpack(
         let tmp_ico = TemporaryFileCleaner::new_with_extension(icon_orig_ext);
 
         let icon_uuid  = Uuid::new_v4().to_string();
-        let icon_path = parent_path.join("icons").join(format!("{icon_uuid}.png"));
+        let icon_path = prism_data.join("icons").join(format!("{icon_uuid}.png"));
         if !icon_path.parent().unwrap().exists() {
             if let Err(e) = fs::create_dir_all(icon_path.parent().unwrap()).await {
                 log::error!("Failed to create icons directory: {}", e);
@@ -306,13 +260,23 @@ pub fn install_modpack(
             return;
         }
 
-        log::info!("Saved instance config to: {}", prism_cfg_path.display());
-        let res = create_shortcut(&prism_exec, &instance_dir, &config.name, &shortcut_icon)
+        let instance_name = instance_dir.file_name()
+            .and_then(|f| f.to_str().map(|s| s.to_string()))
+            .ok_or_else(|| anyhow::anyhow!("Failed to get instance name from directory"));
+        if let Err(e) = instance_name {
+            log::error!("Failed to get instance name from directory: {}", e);
+            yield Err(e);
+            return;
+        }
+
+        let instance_name = instance_name.unwrap();
+        let res = create_shortcut(&prism_exec, &instance_name, &config.name, &shortcut_icon)
             .await
             .map_err(|e| {
                 log::error!("Failed to create shortcut: {}", e);
                 anyhow::anyhow!("Failed to create shortcut: {}", e)
             });
+
         if let Err(e) = res {
             yield Err(e);
             return;
@@ -320,7 +284,7 @@ pub fn install_modpack(
 
         let res = Command::new(&prism_exec)
             .arg("-l")
-            .arg(&config.name)
+            .arg(&instance_name)
             .spawn()
             .map_err(|e| {
                 log::error!("Failed to launch Prism Launcher: {}", e);

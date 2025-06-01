@@ -2,7 +2,6 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 
-use registry::{Hive, Security};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -85,42 +84,4 @@ pub fn read_metadata() -> Result<ModpackConfig, String> {
     serde_json::from_str(&raw_str)
         .map_err(|e| format!("Failed to parse URL as JSON: {}", e))
         .map(|config: ModpackConfig| config)
-}
-
-pub fn get_prism_launcher_exec() -> Result<Option<String>, String> {
-    let key = Hive::ClassesRoot
-        .open(r"prismlauncher\shell\open\command", Security::Read)
-        .ok();
-
-    if key.is_none() {
-        return Ok(None);
-    }
-
-    let key = key.unwrap();
-    let val = key.values().next();
-
-    if val.is_none() {
-        return Ok(None);
-    }
-
-    let val = val.unwrap().ok();
-    if val.is_none() {
-        return Ok(None);
-    }
-
-    let val = val.unwrap();
-    let val = val.data();
-    let val = val.to_string();
-    let val = val.split('"').collect::<Vec<_>>();
-
-    if val.len() < 2 {
-        return Ok(None);
-    }
-
-    let val = val[1].to_string();
-    if val.is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(val))
 }

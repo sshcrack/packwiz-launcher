@@ -1,6 +1,9 @@
 mod deletion_guard;
 mod modpack;
+mod platform;
 mod util;
+
+use std::path::PathBuf;
 
 use deletion_guard::TemporaryFileCleaner;
 use download_extract_progress::{download_github, extract_zip};
@@ -17,8 +20,13 @@ fn read_config() -> Result<ModpackConfig, String> {
 }
 
 #[tauri::command]
-fn get_prism_launcher_path() -> Result<Option<String>, String> {
-    util::get_prism_launcher_exec()
+fn get_prism_launcher_data() -> Result<Option<PathBuf>, String> {
+    platform::get_prism_launcher_data()
+}
+
+#[tauri::command]
+fn get_prism_launcher_exec() -> Result<Option<PathBuf>, String> {
+    platform::get_prism_launcher_exec()
 }
 
 #[tauri::command]
@@ -85,7 +93,7 @@ async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
             .unwrap();
     }
 
-    let install = install_modpack(&path.join("prismlauncher.exe"));
+    let install = install_modpack(path, &path.join("prismlauncher.exe"));
     pin_mut!(install);
 
     while let Some(res) = install.next().await {
@@ -97,8 +105,12 @@ async fn install_portable(app: AppHandle, path: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result<(), String> {
-    let path = custom_path.or(util::get_prism_launcher_exec().ok().flatten());
+// Custom path is not supported for linux
+async fn use_or_install_launcher(
+    app: AppHandle,
+    custom_path: Option<PathBuf>,
+) -> Result<(), String> {
+    let path = custom_path.or(get_prism_launcher_exec().ok().flatten());
 
     log::info!("PrismLauncher path: {:?}", path);
     if path.is_none() {
@@ -145,7 +157,7 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
             .unwrap();
     }
 
-    let path = path.or(util::get_prism_launcher_exec().ok().flatten());
+    let path = path.or(get_prism_launcher_exec().ok().flatten());
     if path.is_none() {
         return Err("PrismLauncher installation canceled.".into());
     }
@@ -153,7 +165,8 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
     let path = path.unwrap();
     let path = std::path::Path::new(&path);
 
-    let install = install_modpack(path);
+    //TODO work on linux support (don't know if I will do that like ever who uses that on linux if they even can't install a modpack themselves??)
+    let install = install_modpack(path.parent().unwrap(), path);
     pin_mut!(install);
 
     while let Some(res) = install.next().await {
@@ -167,6 +180,7 @@ async fn install_launcher(app: AppHandle, custom_path: Option<String>) -> Result
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .target(tauri_plugin_log::Target::new(
@@ -179,25 +193,22 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let config = util::read_metadata()
-                .map_err(|e| {
-                    log::error!("Failed to read config: {}", e);
-                    e
-                })?;
+            let config = util::read_metadata().map_err(|e| {
+                log::error!("Failed to read config: {}", e);
+                e
+            })?;
 
             let w = app.webview_windows();
-            let (_, w) = w
-                .iter()
-                .next()
-                .ok_or("No webview window found")?;
+            let (_, w) = w.iter().next().ok_or("No webview window found")?;
 
             w.set_title(format!("{} Installer", config.name).as_str())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             read_config,
-            get_prism_launcher_path,
-            install_launcher,
+            get_prism_launcher_data,
+            get_prism_launcher_exec,
+            use_or_install_launcher,
             install_portable
         ])
         .run(tauri::generate_context!())

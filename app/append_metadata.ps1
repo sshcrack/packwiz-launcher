@@ -3,6 +3,10 @@ param(
     [string]$BinaryPath = ".\target\release\modpack-installer.exe"
 )
 
+if(-not $IsWindows -and $BinaryPath -eq ".\target\release\modpack-installer.exe") {
+    $BinaryPath = "./target/release/modpack-installer"
+}
+
 # Define the ModpackConfig as JSON
 $modpackConfig = @{
     name = "Minecolonies Offical"

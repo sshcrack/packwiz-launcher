@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { InstallType } from "../types";
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { platform } from '@tauri-apps/plugin-os';
 
 export function useInstallation() {
     const [installType, setInstallType] = useState<InstallType>("prism");
@@ -14,6 +15,7 @@ export function useInstallation() {
     const [error, setError] = useState<string | null>(null);
     const [showImportDialog, setShowImportDialog] = useState(false);
     const [isNewInstallation, setIsNewInstallation] = useState(false);
+    const isWindows = useMemo(() => platform() === "windows", [])
 
     // Check if PrismLauncher is already installed
     useEffect(() => {
@@ -50,7 +52,7 @@ export function useInstallation() {
         setInstalling(true);
         setProgress(0);
         setProgressMessage("Starting installation...");
-        setError(null);        
+        setError(null);
         try {
             // Setup event listeners for progress updates
             const unlistenProgress = await listen<[number, string]>("install_progress", (event) => {
@@ -73,8 +75,8 @@ export function useInstallation() {
                 await invoke("install_portable", { path: installPath });
             } else {
                 // If using prism launcher, pass the custom path if provided
-                const customPath = installPath.trim() ? installPath : null;
-                await invoke("install_launcher", { customPath });
+                const customPath = isWindows && installPath.trim() ? installPath : null;
+                await invoke("use_or_install_launcher", { customPath });
             }
             // Cleanup listeners after installation completes
             unlistenProgress();
@@ -91,7 +93,7 @@ export function useInstallation() {
             setError(`${error}`);
             setProgressMessage("Installation failed");
         }
-    };    return {
+    }; return {
         installType,
         setInstallType,
         installPath,
