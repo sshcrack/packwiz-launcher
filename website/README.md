@@ -95,12 +95,12 @@ This application uses the local filesystem for storing uploaded icons. The files
 
 The server provides the following API endpoints:
 
-- `POST /api/trigger-workflow`: Triggers a GitHub Actions workflow to build a custom installer
-- `GET /api/latest-release`: Gets the latest release of the modpack installer
-- `GET /api/workflow-status`: Checks the status of a GitHub workflow run
-- `GET /api/workflow-artifacts`: Gets the artifacts from a completed workflow run
-- `POST /api/upload-icon`: Uploads a custom icon for the installer
-- `GET /api/download-artifact`: Downloads an artifact from a workflow run
+- `POST /trigger-workflow`: Triggers a GitHub Actions workflow to build a custom installer
+- `GET /latest-release`: Gets the latest release of the modpack installer
+- `GET /workflow-status`: Checks the status of a GitHub workflow run
+- `GET /workflow-artifacts`: Gets the artifacts from a completed workflow run
+- `POST /upload-icon`: Uploads a custom icon for the installer
+- `GET /download-artifact`: Downloads an artifact from a workflow run
 
 ## License
 

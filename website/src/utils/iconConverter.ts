@@ -5,6 +5,8 @@
  * for use with the GitHub Actions workflow.
  */
 
+import { API_BASE_URL } from './github';
+
 /**
  * Converts an image file to a data URL
  */
@@ -39,7 +41,7 @@ export async function uploadIconFile(file: File): Promise<string> {
   formData.append('icon', file);
 
   // Upload the file to our Express server endpoint
-  const response = await fetch('/api/upload-icon', {
+  const response = await fetch(`${API_BASE_URL}/api/upload-icon`, {
     method: 'POST',
     body: formData,
   });

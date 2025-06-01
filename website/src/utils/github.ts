@@ -4,14 +4,14 @@ import { GitHubArtifactsResponse, GitHubWorkflowResponse } from '@/types/modpack
 
 const GITHUB_REPO = 'sshcrack/packwiz-launcher';
 const WORKFLOW_ID = '165435937';
-const API_BASE_URL = ''; // Empty string for relative URLs
+export const API_BASE_URL = import.meta.env.PROD ? "https://packwiz-launcher.sshcrack.me" : 'http://localhost:3000'; // Empty string for relative URLs
 
 /**
  * Trigger a GitHub workflow with the specified inputs
  * This operation requires a GitHub token, so it must go through the server
  */
 export async function triggerGitHubWorkflow(iconUrl: string): Promise<GitHubWorkflowResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/trigger-workflow`, {
+  const response = await fetch(`${API_BASE_URL}/trigger-workflow`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ export async function triggerGitHubWorkflow(iconUrl: string): Promise<GitHubWork
  * Now using our Express server as a proxy
  */
 export async function getLatestReleaseArtifact(): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/latest-release?repo=${GITHUB_REPO}`, {
+  const response = await fetch(`${API_BASE_URL}/latest-release?repo=${GITHUB_REPO}`, {
     headers: {
       'Accept': 'application/json',
     }
@@ -69,7 +69,7 @@ export async function pollWorkflowCompletion(workflowRunId: number): Promise<str
 
   while (!complete) {
     // Check workflow status through our server endpoint
-    const response = await fetch(`${API_BASE_URL}/api/workflow-status?run_id=${workflowRunId}`, {
+    const response = await fetch(`${API_BASE_URL}/workflow-status?run_id=${workflowRunId}`, {
       headers: {
         'Accept': 'application/json',
       }
@@ -85,7 +85,7 @@ export async function pollWorkflowCompletion(workflowRunId: number): Promise<str
       complete = true;
 
       // Get artifacts through our server endpoint
-      const artifactsResponse = await fetch(`${API_BASE_URL}/api/workflow-artifacts?run_id=${workflowRunId}`);
+      const artifactsResponse = await fetch(`${API_BASE_URL}/workflow-artifacts?run_id=${workflowRunId}`);
 
       if (!artifactsResponse.ok) {
         throw new Error(`Failed to get workflow artifacts: ${await artifactsResponse.text()}`);
@@ -115,7 +115,7 @@ export async function downloadFile(url: string): Promise<ArrayBuffer> {
   // If the URL is for a GitHub artifact download which requires authentication
   if (url.includes('api.github.com') && url.includes('/actions/artifacts/')) {
     // Use our Express server proxy to handle authentication
-    const response = await fetch(`${API_BASE_URL}/api/download-artifact?url=${encodeURIComponent(url)}`);
+    const response = await fetch(`${API_BASE_URL}/download-artifact?url=${encodeURIComponent(url)}`);
 
     if (!response.ok) {
       throw new Error(`Failed to download file through proxy: ${await response.text()}`);

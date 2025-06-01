@@ -15,24 +15,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col">      <Navbar position="sticky">
-        <NavbarBrand>
-          <div className="font-bold text-xl">
-            Minecraft Modpack Installer
-          </div>
-        </NavbarBrand>
+      <NavbarBrand>
+        <div className="font-bold text-xl">
+          Minecraft Modpack Installer
+        </div>
+      </NavbarBrand>
 
-        <NavbarContent justify="end">
-          <NavbarItem>
-            <Link
-              href="https://github.com/sshcrack/packwiz-launcher"
-              isExternal
-              showAnchorIcon
-            >
-              GitHub
-            </Link>
-          </NavbarItem>
-        </NavbarContent>
-      </Navbar>
+      <NavbarContent justify="end">
+        <NavbarItem>
+          <Link
+            href="https://github.com/sshcrack/packwiz-launcher"
+            isExternal
+            showAnchorIcon
+          >
+            GitHub
+          </Link>
+        </NavbarItem>
+      </NavbarContent>
+    </Navbar>
 
       <main className="flex-grow">
         {mounted && children}

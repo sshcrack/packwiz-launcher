@@ -1,12 +1,10 @@
 import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { staticPlugin } from '@elysiajs/static';
-import { html } from '@elysiajs/html';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import githubRoutes from './routes/github';
 
 // Load environment variables
 dotenv.config();
