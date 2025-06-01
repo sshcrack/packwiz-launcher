@@ -53,7 +53,7 @@ const storeIcon = async (file: File) => {
 // Create Elysia app
 const app = new Elysia()
     .use(cors({
-        origin: ''
+        origin: 'sshcrack.github.io'
     }))
     // Make uploads directory accessible
     .use(staticPlugin({
