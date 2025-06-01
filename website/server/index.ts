@@ -16,6 +16,16 @@ if (!process.env.GITHUB_TOKEN) {
     process.exit(1);
 }
 
+if (!process.env.BASE_URL) {
+    console.error('Error: BASE_URL environment variable is not set');
+    console.error('Please create a .env file with your base URL');
+    process.exit(1);
+}
+
+// Define the GitHub repository and workflow ID
+const GITHUB_REPO = 'sshcrack/packwiz-launcher';
+const WORKFLOW_ID = '165435937';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, '..');
@@ -51,30 +61,59 @@ const storeIcon = async (file: File) => {
 // Create Elysia app
 const app = new Elysia()
     .use(cors({
-        origin: 'sshcrack.github.io'
+        origin: '*' // Allow all origins for client-side development
     }))
     // Make uploads directory accessible
     .use(staticPlugin({
         assets: uploadsDir,
         prefix: '/uploads'
-    }))
-    .post('/trigger-workflow', async ({ body, set }) => {
+    })).post('/trigger-workflow', async ({ request, set }) => {
         try {
-            const { repo, workflow_id, inputs } = body as { repo: string, workflow_id: string, inputs: any };
+            const form = await request.formData();
+            let iconUrl = null;
 
-            // GitHub API endpoint for triggering workflows
-            const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow_id}/dispatches`;
+            // Check if an icon file was uploaded
+            const iconFile = form.get('icon') as File | null;
+            if (iconFile) {
+                // Validate icon file
+                const fileExtension = iconFile.name.substring(iconFile.name.lastIndexOf('.')).toLowerCase();
+                if (fileExtension !== '.ico' && iconFile.type !== 'image/x-icon') {
+                    set.status = 400;
+                    return { error: 'Only .ico files are allowed' };
+                }
+
+                // Check file size (1MB limit)
+                if (iconFile.size > 1024 * 1024) {
+                    set.status = 400;
+                    return { error: 'File size exceeds 1MB limit' };
+                }
+
+                // Store the file
+                const { filename } = await storeIcon(iconFile);
+
+                // Create the URL to access the file
+                iconUrl = `${process.env.BASE_URL}/uploads/icons/${filename}`;
+            }
+
+            // Create inputs object with icon URL if available
+            const inputs: Record<string, string> = {};
+            if (iconUrl) {
+                inputs.icon_url = iconUrl;
+            }
+
+            // GitHub API endpoint for triggering workflows - using server-side constants
+            const url = `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`;
 
             // Trigger the workflow
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    ref: 'main', // or any other branch
+                    ref: 'master',
                     inputs,
                 }),
             });
@@ -87,11 +126,11 @@ const app = new Elysia()
 
             // Get the workflow run ID
             const runsResponse = await fetch(
-                `https://api.github.com/repos/${repo}/actions/workflows/${workflow_id}/runs?per_page=1`,
+                `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/runs?per_page=1`,
                 {
                     headers: {
                         'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                     },
                 }
             );
@@ -108,205 +147,31 @@ const app = new Elysia()
             return {
                 id: latestRun.id,
                 status: latestRun.status,
-                artifacts_url: latestRun.artifacts_url,
+                artifacts_url: latestRun.artifacts_url
             };
         } catch (error: any) {
             console.error('Error triggering workflow:', error);
             set.status = 500;
             return { error: error.message };
         }
-    }, {
-        body: t.Object({
-            repo: t.String(),
-            workflow_id: t.String(),
-            inputs: t.Object({})
-        })
     })
-    .get('/latest-release', async ({ query, set }) => {
+    .get('/download-artifact/:artifactId', async ({ params, set }) => {
         try {
-            const { repo } = query as { repo: string };
+            const { artifactId } = params;
 
-            if (!repo) {
+            if (!artifactId) {
                 set.status = 400;
-                return { error: 'Repository name is required' };
+                return { error: 'Artifact ID is required' };
             }
 
-            // Get the latest release
-            const response = await fetch(
-                `https://api.github.com/repos/${repo}/releases/latest`,
-                {
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `token ${process.env.GITHUB_TOKEN}`,
-                    },
-                }
-            );
+            // Construct the URL using only the artifact ID
+            const url = `https://api.github.com/repos/${GITHUB_REPO}/actions/artifacts/${artifactId}/zip`;
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                set.status = response.status;
-                return { error: `GitHub API error: ${errorText}` };
-            }
-
-            const data = await response.json();
-
-            // Find the modpack-installer.exe asset
-            const asset = data.assets.find((a: any) => a.name === 'modpack-installer.exe');
-
-            if (!asset) {
-                set.status = 404;
-                return { error: 'No modpack-installer.exe found in the latest release' };
-            }
-
-            return {
-                download_url: asset.browser_download_url,
-                release_name: data.name,
-                release_tag: data.tag_name,
-            };
-        } catch (error: any) {
-            console.error('Error getting latest release:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .get('/workflow-status', async ({ query, set }) => {
-        try {
-            const { run_id } = query as { run_id: string };
-
-            if (!run_id) {
-                set.status = 400;
-                return { error: 'Workflow run ID is required' };
-            }
-
-            // Get the workflow run status
-            const response = await fetch(
-                `https://api.github.com/repos/sshcrack/packwiz-launcher/actions/runs/${run_id}`,
-                {
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `token ${process.env.GITHUB_TOKEN}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                set.status = response.status;
-                return { error: `GitHub API error: ${errorText}` };
-            }
-
-            const data = await response.json();
-
-            return {
-                id: data.id,
-                status: data.status,
-                conclusion: data.conclusion,
-            };
-        } catch (error: any) {
-            console.error('Error checking workflow status:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .get('/workflow-artifacts', async ({ query, set }) => {
-        try {
-            const { run_id } = query as { run_id: string };
-
-            if (!run_id) {
-                set.status = 400;
-                return { error: 'Workflow run ID is required' };
-            }
-
-            // Get the workflow artifacts
-            const response = await fetch(
-                `https://api.github.com/repos/sshcrack/packwiz-launcher/actions/runs/${run_id}/artifacts`,
-                {
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `token ${process.env.GITHUB_TOKEN}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                set.status = response.status;
-                return { error: `GitHub API error: ${errorText}` };
-            }
-
-            const data = await response.json();
-
-            // Add download URLs to each artifact
-            const artifacts = data.artifacts.map((artifact: any) => ({
-                ...artifact,
-                // This URL will need to be authorized with the GitHub token
-                archive_download_url: artifact.archive_download_url,
-            }));
-
-            return { artifacts };
-        } catch (error: any) {
-            console.error('Error getting workflow artifacts:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .post('/upload-icon', async ({ request, set }) => {
-        try {
-            const form = await request.formData();
-            const iconFile = form.get('icon') as File;
-
-            if (!iconFile) {
-                set.status = 400;
-                return { error: 'No icon file provided' };
-            }
-
-            // Check file type (only accept .ico files)
-            const fileExtension = iconFile.name.substring(iconFile.name.lastIndexOf('.')).toLowerCase();
-            if (fileExtension !== '.ico' && iconFile.type !== 'image/x-icon') {
-                set.status = 400;
-                return { error: 'Only .ico files are allowed' };
-            }
-
-            // Check file size (1MB limit)
-            if (iconFile.size > 1024 * 1024) {
-                set.status = 400;
-                return { error: 'File size exceeds 1MB limit' };
-            }
-
-            // Store the file
-            const { filename, size } = await storeIcon(iconFile);
-
-            // Create the URL to access the file
-            const protocol = request.headers.get('x-forwarded-proto') || 'http';
-            const host = request.headers.get('host');
-            const baseUrl = `${protocol}://${host}`;
-            const fileUrl = `${baseUrl}/uploads/icons/${filename}`;
-
-            return {
-                url: fileUrl,
-                filename,
-                size,
-            };
-        } catch (error: any) {
-            console.error('Error uploading icon:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .get('/download-artifact', async ({ query, set }) => {
-        try {
-            const { url } = query as { url: string };
-
-            if (!url) {
-                set.status = 400;
-                return { error: 'URL is required' };
-            }
-
-            // Download the artifact
+            // Download the artifact with GitHub token
             const response = await fetch(url, {
                 headers: {
                     'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                 },
             });
 
@@ -316,19 +181,19 @@ const app = new Elysia()
                 return { error: `GitHub API error: ${errorText}` };
             }
 
-            // Stream the response back to the client
+            // Set appropriate headers for streaming
             set.headers['Content-Type'] = response.headers.get('content-type') || 'application/octet-stream';
             set.headers['Content-Disposition'] = response.headers.get('content-disposition') || 'attachment';
 
-            // Return the buffer
-            const buffer = await response.arrayBuffer();
-            return Buffer.from(buffer);
+            // Return the response body directly to stream it to the client
+            return new Response(response.body);
         } catch (error: any) {
             console.error('Error downloading artifact:', error);
             set.status = 500;
             return { error: error.message };
         }
     });
+
 // Start server
 const PORT = Number(process.env.PORT || 3001);
 app.listen(PORT, () => {

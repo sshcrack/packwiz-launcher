@@ -3,9 +3,10 @@ import { Button } from '@heroui/button';
 import { Input } from '@heroui/input';
 import { Switch } from '@heroui/switch';
 import { ModpackConfig } from '@/types/modpack';
+import { fileToDataUrl } from '@/utils/iconConverter';
 
 interface ModpackFormProps {
-    onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconUrl: string | null) => void;
+    onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconFile: File | null) => void;
     isLoading: boolean;
     processingStep?: string;
 }
@@ -13,7 +14,7 @@ interface ModpackFormProps {
 export default function ModpackForm({ onSubmit, isLoading, processingStep }: ModpackFormProps) {
     const [useCustomIcon, setUseCustomIcon] = useState(false);
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
-    const [customIconUrl, setCustomIconUrl] = useState<string | null>(null); const [formData, setFormData] = useState<ModpackConfig>({
+    const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null);const [formData, setFormData] = useState<ModpackConfig>({
         name: 'Minecolonies',
         author: 'Minecolonies Team',
         description: 'A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.',
@@ -30,7 +31,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
             ...prev,
             [name]: value
         }));
-    }; const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    };    const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0];
 
@@ -38,7 +39,8 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
             if (file.type === 'image/x-icon' || file.name.toLowerCase().endsWith('.ico')) {
                 setCustomIconFile(file);
                 // Create a temporary URL for preview
-                setCustomIconUrl(URL.createObjectURL(file));
+                const previewUrl = await fileToDataUrl(file);
+                setCustomIconPreviewUrl(previewUrl);
             } else {
                 alert('Please select a valid .ico file');
                 // Clear the input
@@ -56,18 +58,8 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
             return;
         }
 
-        if (useCustomIcon && customIconFile) {
-            // In a real implementation, we would upload the icon file to a server here
-            // and get back a URL. For this example, we'll simulate it with the URL.createObjectURL
-
-            // For real implementation, upload the file and get URL back
-            // const uploadedIconUrl = await uploadIconFile(customIconFile);
-
-            onSubmit(formData, useCustomIcon, customIconUrl);
-        } else {
-            // Using default icon
-            onSubmit(formData, false, null);
-        }
+        // Pass the file directly to the onSubmit handler
+        onSubmit(formData, useCustomIcon, customIconFile);
     };
 
     return (
@@ -211,9 +203,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <label htmlFor="useCustomIcon" className="text-sm font-medium">
                         Use custom icon for installer
                     </label>
-                </div>
-
-                {useCustomIcon && (
+                </div>                {useCustomIcon && (
                     <div className="mt-4">                        <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
                         Upload Icon (.ico file only)
                     </label>
@@ -224,10 +214,10 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                             onChange={handleIconFileChange}
                             className="w-full"
                         />
-                        {customIconUrl && (
+                        {customIconPreviewUrl && (
                             <div className="mt-2">
                                 <p className="text-sm">Icon Preview:</p>
-                                <img src={customIconUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
+                                <img src={customIconPreviewUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
                             </div>
                         )}
                     </div>

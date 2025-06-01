@@ -4,7 +4,7 @@ import { Link } from '@heroui/link';
 import ModpackForm from '@/components/ModpackForm';
 import { ModpackConfig } from '@/types/modpack';
 import { appendDataToExecutable, downloadFile, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
-import { uploadIconFile } from '@/utils/iconConverter';
+import { isIcoFile } from '@/utils/iconConverter';
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function IndexPage() {
   const handleFormSubmit = async (
     config: ModpackConfig,
     useCustomIcon: boolean,
-    customIconUrl: string | null
+    customIconFile: File | null
   ) => {
     setIsLoading(true);
     setError(null);
@@ -28,38 +28,27 @@ export default function IndexPage() {
     try {
       let executableArrayBuffer: ArrayBuffer;
 
-      if (useCustomIcon && customIconUrl) {
-        setProcessingStep('Uploading icon...');
-        // Convert to blob if it's a data URL
-        let iconBlob: Blob;
-        if (customIconUrl.startsWith('blob:') || customIconUrl.startsWith('data:')) {
-          iconBlob = await fetch(customIconUrl).then(r => r.blob());
-        } else {
-          // It's already a URL to an uploaded file
-          iconBlob = await fetch(customIconUrl).then(r => r.blob());
+      if (useCustomIcon && customIconFile) {
+        // Validate icon file
+        if (!isIcoFile(customIconFile)) {
+          throw new Error('Only .ico files are supported. Please select a valid icon file.');
         }
 
-        // Create a File object from the blob
-        const iconFile = new File([iconBlob], 'icon.ico', { type: 'image/x-icon' });
-
-        // Upload the icon
-        const iconUrl = await uploadIconFile(iconFile);
-
-        setProcessingStep('Triggering GitHub workflow...');
+        setProcessingStep('Triggering GitHub workflow with custom icon...');
         // Trigger GitHub workflow with custom icon
-        const workflowResponse = await triggerGitHubWorkflow(iconUrl);
-
-        setProcessingStep('Building custom installer (this may take a few minutes)...');
+        const workflowResponse = await triggerGitHubWorkflow(customIconFile);        setProcessingStep('Building custom installer (this may take a few minutes)...');
         // Poll for workflow completion
         const artifactUrl = await pollWorkflowCompletion(workflowResponse.id);
+        console.log('Downloading artifact from:', artifactUrl);
 
         setProcessingStep('Downloading custom installer...');
         // Download the artifact
         executableArrayBuffer = await downloadFile(artifactUrl);
       } else {
         setProcessingStep('Downloading default installer...');
-        // Use default executable from latest release
+        // Use default executable from latest release - direct GitHub API call
         const latestReleaseUrl = await getLatestReleaseArtifact();
+        console.log('Downloading default installer from:', latestReleaseUrl);
         executableArrayBuffer = await downloadFile(latestReleaseUrl);
       }
 
