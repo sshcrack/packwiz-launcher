@@ -41,6 +41,15 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Cache for the latest release URL
+let latestReleaseCache: {
+    url: string;
+    timestamp: number;
+} | null = null;
+
+// Cache TTL in milliseconds (1 hour)
+const CACHE_TTL = 60 * 60 * 1000;
+
 // Setup file handling functions for icon uploads
 const storeIcon = async (file: File) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -56,10 +65,47 @@ const storeIcon = async (file: File) => {
     };
 };
 
+// Function to get latest release URL (with caching)
+const getLatestReleaseUrl = async (): Promise<string> => {
+    // Check if we have a valid cached URL
+    if (latestReleaseCache && (Date.now() - latestReleaseCache.timestamp) < CACHE_TTL) {
+        return latestReleaseCache.url;
+    }
+
+    // Fetch the latest release info from GitHub
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+        headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to get latest release: ${await response.text()}`);
+    }
+
+    const data = await response.json();
+
+    // Find the modpack-installer.exe asset
+    const asset = data.assets.find((a: any) => a.name === 'modpack-installer.exe');
+
+    if (!asset) {
+        throw new Error('No modpack-installer.exe found in the latest release');
+    }
+
+    // Cache the URL
+    latestReleaseCache = {
+        url: asset.browser_download_url,
+        timestamp: Date.now(),
+    };
+
+    return asset.browser_download_url;
+};
+
 // Create Elysia app
 const app = new Elysia()
     .use(cors({
-        origin: process.env.DEBUG === "true" ? 'tunnel.sshcrack.me' : "packwiz-launcher.sshcrack.me"
+        origin: process.env.DEBUG === "true" ? '*' : ["packwiz-launcher.sshcrack.me", "localhost", "127.0.0.1"]
     }))
     .onAfterResponse(({ set }) => {
         // Check if we need to delete a file after sending the response
@@ -72,6 +118,38 @@ const app = new Elysia()
             } catch (error) {
                 console.error(`Error deleting file ${filename}:`, error);
             }
+        }
+    })
+    // Add the new download route for the launcher executable
+    .get('/download', async ({ set }) => {
+        try {
+            // Get the latest release URL (cached if available)
+            const downloadUrl = await getLatestReleaseUrl();
+
+            // Fetch the file from GitHub
+            const response = await fetch(downloadUrl, {
+                headers: {
+                    'Accept': 'application/octet-stream',
+                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                set.status = response.status;
+                return { error: `GitHub API error: ${errorText}` };
+            }
+
+            // Set appropriate headers for streaming
+            set.headers['Content-Type'] = response.headers.get('content-type') || 'application/octet-stream';
+            set.headers['Content-Disposition'] = 'attachment; filename="modpack-installer.exe"';
+
+            // Stream the response directly to the client
+            return new Response(response.body);
+        } catch (error: any) {
+            console.error('Error downloading launcher:', error);
+            set.status = 500;
+            return { error: error.message };
         }
     })
     .get('/uploads/:filename', async ({ params, set }) => {
@@ -284,6 +362,22 @@ const app = new Elysia()
             return { error: error.message };
         }
     });
+
+if(process.env.DEBUG === "true") {
+    app.get("*", async ({ set, path }) => {
+        const f = await fetch("http://localhost:5173" + path)
+
+        if (!f.ok) {
+            set.status = f.status;
+            return { error: `Failed to fetch from Vite dev server: ${await f.text()}` };
+        }
+
+        return new Response(f.body, {
+            headers: f.headers,
+            status: f.status
+        });
+    })
+}
 
 // Start server
 const PORT = Number(process.env.PORT || 3001);

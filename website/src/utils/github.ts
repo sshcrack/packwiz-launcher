@@ -34,25 +34,12 @@ export async function triggerGitHubWorkflow(iconFile: File | null, turnstileToke
 }
 
 /**
- * Get the latest release artifact URL directly from GitHub
+ * Get the latest release artifact URL from our server proxy endpoint
+ * This avoids CORS issues with direct GitHub download links
  */
 export async function getLatestReleaseArtifact(): Promise<string> {
-  const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to get latest release: ${await response.text()}`);
-  }
-
-  const data = await response.json();
-
-  // Find the modpack-installer.exe asset
-  const asset = data.assets.find((a: any) => a.name === 'modpack-installer.exe');
-
-  if (!asset) {
-    throw new Error('No modpack-installer.exe found in the latest release');
-  }
-
-  return asset.browser_download_url;
+  // Use our server proxy endpoint instead of direct GitHub URL
+  return `${API_BASE_URL}/download`;
 }
 
 /**

@@ -11,8 +11,6 @@ export default defineConfig({
 		exclude:["img-to-ico"]
 	},
   server: {
-    cors: {
-      origin: "github.com"
-    }
+    cors: true // Allow all origins for development
   }
 });
