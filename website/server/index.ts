@@ -1,7 +1,6 @@
-import { Elysia, t } from 'elysia';
 import { cors } from '@elysiajs/cors';
-import { staticPlugin } from '@elysiajs/static';
 import dotenv from 'dotenv';
+import { Elysia } from 'elysia';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,6 +18,12 @@ if (!process.env.GITHUB_TOKEN) {
 if (!process.env.BASE_URL) {
     console.error('Error: BASE_URL environment variable is not set');
     console.error('Please create a .env file with your base URL');
+    process.exit(1);
+}
+
+if (!process.env.TURNSTILE_SECRET) {
+    console.error('Error: TURNSTILE_SECRET environment variable is not set');
+    console.error('Please create a .env file with your Turnstile secret key');
     process.exit(1);
 }
 
@@ -54,7 +59,7 @@ const storeIcon = async (file: File) => {
 // Create Elysia app
 const app = new Elysia()
     .use(cors({
-        origin: '*' // Allow all origins for client-side development
+        origin: process.env.DEBUG === "true" ? 'tunnel.sshcrack.me' : "packwiz-launcher.sshcrack.me"
     }))
     .onAfterResponse(({ set }) => {
         // Check if we need to delete a file after sending the response
@@ -104,8 +109,52 @@ const app = new Elysia()
         }
     })
     .post('/trigger-workflow', async ({ request, set }) => {
+        let form: FormData | undefined = undefined;
         try {
-            const form = await request.formData();
+            form = await request.formData();
+        } catch (error: any) {
+            set.status = 400;
+            return { error: 'Invalid form data' };
+        }
+
+        if (!form || !form.has('token')) {
+            set.status = 400;
+            return { error: 'Turnstile token is required' };
+        }
+
+        const turnstileToken = form.get('token') as string | null;
+        if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.length > 2048) {
+            set.status = 400;
+            return { error: 'Invalid token' };
+        }
+
+        // Verify Turnstile token
+        try {
+            const turnstileResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    secret: process.env.TURNSTILE_SECRET,
+                    response: turnstileToken,
+                    remoteip: request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || request.headers.get("X-Real-IP")
+                })
+            });
+
+            const json = await turnstileResponse.json();
+            if (!json.success) {
+                set.status = 401;
+                return { error: 'Invalid Turnstile token' };
+            }
+
+        } catch (error: any) {
+            set.status = 500;
+            console.error('Error verifying Turnstile token:', error);
+            return { error: 'Failed to verify Turnstile token' };
+        }
+
+        try {
             let iconUrl = null;
 
             // Check if an icon file was uploaded

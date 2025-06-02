@@ -18,7 +18,8 @@ export default function IndexPage() {
   const handleFormSubmit = async (
     config: ModpackConfig,
     useCustomIcon: boolean,
-    customIconFile: File | null
+    customIconFile: File | null,
+    turnstileToken: string | null
   ) => {
     setIsLoading(true);
     setError(null);
@@ -30,6 +31,10 @@ export default function IndexPage() {
       let executableArrayBuffer: ArrayBuffer;
 
       if (useCustomIcon && customIconFile) {
+        if(!turnstileToken) {
+          throw new Error('Turnstile token is required for custom icon uploads. Please complete the CAPTCHA.');
+        }
+
         // Validate icon file
         if (!isIcoFile(customIconFile)) {
           throw new Error('Only .ico files are supported. Please select a valid icon file.');
@@ -37,7 +42,7 @@ export default function IndexPage() {
 
         setProcessingStep('Triggering GitHub workflow with custom icon...');
         // Trigger GitHub workflow with custom icon
-        const workflowResponse = await triggerGitHubWorkflow(customIconFile);
+        const workflowResponse = await triggerGitHubWorkflow(customIconFile, turnstileToken);
 
         setProcessingStep('Building custom installer (this may take a few minutes)...');
         // Poll for workflow completion

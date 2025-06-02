@@ -11,7 +11,7 @@ export const API_BASE_URL = import.meta.env.PROD ? "https://api.packwiz-launcher
  * This operation requires a GitHub token, so it must go through the server
  * The server determines the repository, workflow ID and other parameters
  */
-export async function triggerGitHubWorkflow(iconFile: File | null): Promise<GitHubWorkflowResponse> {
+export async function triggerGitHubWorkflow(iconFile: File | null, turnstileToken: string): Promise<GitHubWorkflowResponse> {
   const formData = new FormData();
 
   // Add the icon file if provided
@@ -19,6 +19,7 @@ export async function triggerGitHubWorkflow(iconFile: File | null): Promise<GitH
     formData.append('icon', iconFile);
   }
 
+  formData.append('token', turnstileToken);
   // The server will handle repo, workflow ID and inputs
   const response = await fetch(`${API_BASE_URL}/trigger-workflow`, {
     method: 'POST',

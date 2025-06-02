@@ -9,5 +9,10 @@ export default defineConfig({
   ],
   optimizeDeps:{
 		exclude:["img-to-ico"]
-	}
+	},
+  server: {
+    cors: {
+      origin: "github.com"
+    }
+  }
 });

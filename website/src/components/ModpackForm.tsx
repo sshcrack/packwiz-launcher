@@ -5,9 +5,10 @@ import { Input } from '@heroui/input';
 import { Switch } from '@heroui/switch';
 import init, { convert_to_ico } from "img-to-ico";
 import { useRef, useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile'
 
 interface ModpackFormProps {
-    onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconFile: File | null) => void;
+    onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconFile: File | null, turnstileToken: string | null) => void;
     isLoading: boolean;
     processingStep?: string;
 }
@@ -16,6 +17,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
     const [useCustomIcon, setUseCustomIcon] = useState(false);
     const [initialized, setInitialized] = useState(false);
     const initializing = useRef(false);
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
     const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null); const [formData, setFormData] = useState<ModpackConfig>({
@@ -76,7 +78,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
         }
 
         // Pass the file directly to the onSubmit handler
-        onSubmit(formData, useCustomIcon, customIconFile);
+        onSubmit(formData, useCustomIcon, customIconFile, turnstileToken);
     };
 
     return (
@@ -247,6 +249,16 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                                     <img src={customIconPreviewUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
                                 </div>
                             )}
+                            <div className='h-5' />
+                            <Turnstile
+                            siteKey='0x4AAAAAABfrRkvlvcZn3fZ-'
+                            onSuccess={token => setTurnstileToken(token)}
+                            onExpire={() => setTurnstileToken(null)}
+                            onError={err => {
+                                setTurnstileToken(null)
+                                alert(err)
+                            }}
+                            />
                         </div>
                     )
                 )}
