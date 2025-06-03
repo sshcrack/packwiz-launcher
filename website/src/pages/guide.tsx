@@ -1,4 +1,3 @@
-
 export default function GuidePage() {
     return (
         <div className="min-h-screen flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-blue-900">
@@ -35,26 +34,27 @@ export default function GuidePage() {
                         <h2 className="text-3xl font-bold mb-4">Step 1: Installing packwiz</h2>
                         <p className="mb-4">
                             packwiz is a command-line tool that helps you manage Minecraft modpacks. Let's install it:
-                        </p>
+                        </p>                        <h3 className="text-xl font-semibold mb-2">Option 1: Pre-built binaries (recommended)</h3>
+                        <ol className="list-decimal list-inside space-y-2 mb-4">
+                            <li>
+                                Download from <a href="https://github.com/packwiz/packwiz/actions" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub Actions</a> - select the top build, then download the artifact ZIP for your system at the bottom of the page
+                            </li>
+                            <li>
+                                Or use <a href="https://nightly.link/packwiz/packwiz/workflows/go/main" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">nightly.link</a> for an easier download experience - just select the artifact for your system
+                            </li>
+                            <li>
+                                Extract the downloaded file and add the folder to your PATH environment variable or move it to your modpack directory
+                            </li>
+                            <li>
+                                For Windows users, <a href="https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">here's a tutorial</a> on editing your PATH environment variable
+                            </li>
+                        </ol>
 
-                        <h3 className="text-xl font-semibold mb-2">Option 1: Using go (recommended)</h3>
+                        <h3 className="text-xl font-semibold mb-2">Option 2: Using go</h3>
                         <p className="mb-2">If you have Go installed, you can use:</p>
                         <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-md mb-4 font-mono text-sm overflow-auto">
                             go install github.com/packwiz/packwiz@latest
                         </div>
-
-                        <h3 className="text-xl font-semibold mb-2">Option 2: Pre-built binaries</h3>
-                        <ol className="list-decimal list-inside space-y-2 mb-4">
-                            <li>
-                                Visit the <a href="https://github.com/packwiz/packwiz/releases" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">packwiz releases page</a>
-                            </li>
-                            <li>
-                                Download the appropriate version for your operating system
-                            </li>
-                            <li>
-                                Place the downloaded binary somewhere in your PATH or in your modpack directory
-                            </li>
-                        </ol>
 
                         <p className="mb-2">For more detailed installation instructions, visit:</p>
                         <a href="https://packwiz.infra.link/installation/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
