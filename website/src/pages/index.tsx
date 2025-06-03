@@ -1,13 +1,27 @@
-import ModpackForm from '@/components/ModpackForm';
+import { lazy, Suspense } from 'react';
 import { ModpackConfig } from '@/types/modpack';
-import { appendDataToExecutable, downloadFile, downloadFileBlob, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
 import { isIcoFile } from '@/utils/iconConverter';
 import { Button } from '@heroui/button';
 import { Alert } from '@heroui/alert';
 import { Link } from '@heroui/link';
-import { BlobReader, ZipReader } from "@zip.js/zip.js";
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+
+// Lazy load the ModpackForm component
+const ModpackForm = lazy(() => import('@/components/ModpackForm'));
+
+// Loading component for form
+const FormLoadingSpinner = () => (
+  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex justify-center items-center min-h-[400px]">
+    <div className="text-center">
+      <div className="relative mb-4 mx-auto w-16 h-16">
+        <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full"></div>
+        <div className="w-16 h-16 border-4 border-blue-500 dark:border-blue-400 rounded-full animate-spin absolute top-0 left-0 border-t-transparent border-b-transparent"></div>
+      </div>
+      <p className="text-gray-600 dark:text-gray-400">Loading form...</p>
+    </div>
+  </div>
+);
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +44,16 @@ export default function IndexPage() {
     setModpackName(config.name);
 
     try {
+      // Dynamically import utilities only when needed
+      const {
+        appendDataToExecutable,
+        downloadFile,
+        downloadFileBlob,
+        getLatestReleaseArtifact,
+        pollWorkflowCompletion,
+        triggerGitHubWorkflow
+      } = await import('@/utils/github');
+
       let executableArrayBuffer: ArrayBuffer;
 
       if (useCustomIcon && customIconFile) {
@@ -56,23 +80,10 @@ export default function IndexPage() {
         const rawZipFile = await downloadFileBlob(artifactUrl);
 
         setProcessingStep('Reading zip file...');
-        const zipFileReader = new BlobReader(rawZipFile)
-        const zipReader = new ZipReader(zipFileReader);
-        const installerEntry = (await zipReader.getEntries()).shift()
+        // Dynamically import zipUtils (which in turn imports zip.js) only when needed
+        const { extractFirstEntryAsArrayBuffer } = await import('@/utils/zipUtils');
 
-
-        if (!installerEntry || !installerEntry.getData) {
-          throw new Error('No installer found in the zip file or invalid data');
-        }
-
-        const stream = new TransformStream();
-        const streamPromise = new Response(stream.readable).arrayBuffer();
-
-        await installerEntry.getData(stream.writable);
-        await zipReader.close()
-
-        setProcessingStep('Converting installer to ArrayBuffer...');
-        executableArrayBuffer = await streamPromise;
+        executableArrayBuffer = await extractFirstEntryAsArrayBuffer(rawZipFile);
       } else {
         setProcessingStep('Downloading default installer...');
         // Use default executable from latest release - direct GitHub API call
@@ -175,11 +186,13 @@ export default function IndexPage() {
             )}
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-              <ModpackForm
-                onSubmit={handleFormSubmit}
-                isLoading={isLoading}
-                processingStep={processingStep}
-              />
+              <Suspense fallback={<FormLoadingSpinner />}>
+                <ModpackForm
+                  onSubmit={handleFormSubmit}
+                  isLoading={isLoading}
+                  processingStep={processingStep}
+                />
+              </Suspense>
             </div>
           </>
         )}

@@ -4,9 +4,8 @@ import { Button } from '@heroui/button';
 import { Input, Textarea } from '@heroui/input';
 import { Switch } from '@heroui/switch';
 import { SelectItem, Select } from '@heroui/select';
-import init, { convert_to_ico } from "img-to-ico";
-import { useRef, useState } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile'
+import React, { useRef, useState, useEffect } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 interface ModpackFormProps {
     onSubmit: (config: ModpackConfig, useCustomIcon: boolean, customIconFile: File | null, turnstileToken: string | null) => void;
@@ -23,13 +22,16 @@ const DEBUG_DEFAULTS: ModpackConfig = {
     base_pack_url: 'http://localhost:3001/base_modpack.zip',
     theme: 'dark',
     background: 'stone'
-}
+};
 
-export default function ModpackForm({ onSubmit, isLoading, processingStep }: ModpackFormProps) {
+// Define the component as React.FC to ensure it returns JSX.Element
+const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processingStep }) => {
     const [useCustomIcon, setUseCustomIcon] = useState(false);
     const [initialized, setInitialized] = useState(false);
     const initializing = useRef(false);
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const [iconModuleLoading, setIconModuleLoading] = useState(false);
+    const [iconConversionError, setIconConversionError] = useState<string | null>(null);
 
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
     const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null);
@@ -43,6 +45,25 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
         theme: 'light',
         background: 'dirt'
     });
+
+    // Lazy load the img-to-ico module
+    useEffect(() => {
+        if (useCustomIcon && !initialized && !initializing.current) {
+            initializing.current = true;
+            setIconModuleLoading(true);
+
+            // Dynamic import of the icon converter
+            import('@/utils/iconConverter.lazy').then(async (iconModule) => {
+                await iconModule.initIconConverter();
+                setInitialized(true);
+                setIconModuleLoading(false);
+            }).catch(err => {
+                console.error('Error loading icon converter:', err);
+                setIconModuleLoading(false);
+                initializing.current = false;
+            });
+        }
+    }, [useCustomIcon, initialized]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -63,30 +84,31 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                 const previewUrl = await fileToDataUrl(file);
                 setCustomIconPreviewUrl(previewUrl);
             } else {
-                file.arrayBuffer().then(async (buffer) => {
-                    // Convert to .ico format using wasm
-                    const icoBuffer = convert_to_ico(new Uint8Array(buffer), file.type);
-                    const icoBlob = new Blob([icoBuffer], { type: 'image/x-icon' });
-                    const icoFile = new File([icoBlob], 'icon.ico', { type: 'image/x-icon' });
+                try {
+                    // Dynamically import the converter only when needed
+                    const iconConverter = await import('@/utils/iconConverter.lazy');
+                    const icoFile = await iconConverter.createIcoFile(file);
 
                     setCustomIconFile(icoFile);
                     // Create a temporary URL for preview
                     const previewUrl = await fileToDataUrl(icoFile);
                     setCustomIconPreviewUrl(previewUrl);
-                }).catch(err => {
+                    setIconConversionError(null); // Clear any previous errors
+                } catch (err) {
                     console.error('Error converting file to ICO format:', err);
-                    alert("Failed to convert: " + err);
-                });
+                    setIconConversionError(`Failed to convert: ${err}`);
+                    setCustomIconFile(null);
+                    setCustomIconPreviewUrl(null);
+                    e.target.value = ''; // Reset file input to allow re-uploading the same file
+                }
             }
         }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
+    }; const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // If using custom icon but no file was selected
         if (useCustomIcon && !customIconFile) {
-            alert('Please select a custom icon file');
+            setIconConversionError('Please select a custom icon file');
             return;
         }
 
@@ -227,50 +249,54 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
             <div className="border-t pt-6">
                 <h2 className="text-xl font-semibold mb-4">Installer Executable</h2>
 
-                <div className="flex items-center space-x-3 mb-4">
-                    <Switch
-                        id="useCustomIcon"
-                        checked={useCustomIcon}
-                        onChange={() => {
-                            setUseCustomIcon(!useCustomIcon)
-                            if (initializing.current) return;
-
-                            init().then(() => setInitialized(true))
-                            initializing.current = true;
-                        }}
-                    />
+                <div className="flex items-center space-x-3 mb-4">                    <Switch
+                    id="useCustomIcon"
+                    checked={useCustomIcon}
+                    onChange={() => {
+                        setUseCustomIcon(!useCustomIcon);
+                        if (!useCustomIcon === false) {
+                            setIconConversionError(null);
+                        }
+                    }}
+                />
                     <label htmlFor="useCustomIcon" className="text-sm font-medium">
                         Use custom icon for installer
                     </label>
-                </div>                {useCustomIcon && (
-                    !initialized ? (
-                        <label>Initializing, please wait</label>
+                </div>
+                {useCustomIcon && (
+                    iconModuleLoading ? (
+                        <label>Initializing icon converter, please wait...</label>
+                    ) : !initialized ? (
+                        <label>Preparing icon converter...</label>
                     ) : (
                         <div className="mt-4">
                             <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
                                 Upload Icon (image must be square and under 1MB)
-                            </label>
-                            <Input
+                            </label>                            <Input
                                 id="iconFile"
                                 type="file"
                                 accept="image/*"
                                 onChange={handleIconFileChange}
                                 className="w-full"
                             />
+                            {iconConversionError && (
+                                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                    {iconConversionError}
+                                </p>
+                            )}
                             {customIconPreviewUrl && (
                                 <div className="mt-2">
                                     <p className="text-sm">Icon Preview:</p>
                                     <img src={customIconPreviewUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
                                 </div>
                             )}
-                            <div className='h-5' />
-                            <Turnstile
+                            <div className='h-5' />                            <Turnstile
                                 siteKey='0x4AAAAAABfrRkvlvcZn3fZ-'
                                 onSuccess={token => setTurnstileToken(token)}
                                 onExpire={() => setTurnstileToken(null)}
                                 onError={err => {
-                                    setTurnstileToken(null)
-                                    alert(err)
+                                    setTurnstileToken(null);
+                                    setIconConversionError(`Turnstile error: ${err}`);
                                 }}
                             />
                         </div>
@@ -293,4 +319,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
             </div>
         </form>
     );
-}
+};
+
+// Export the component with proper typing for lazy loading
+export default ModpackForm;
