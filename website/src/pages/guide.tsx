@@ -49,14 +49,23 @@ export default function GuidePage() {
 
                             // Customize code blocks
                             code: ({ node, className, children, ...props }) => {
-                                const inline = false
-                                if (inline) {
+                                if (!node?.properties?.block) {
                                     return <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded" {...props}>{children}</code>;
                                 }
                                 return (
-                                    <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-md mb-4 font-mono text-sm overflow-auto">
                                         <code className={className} {...props}>{children}</code>
-                                    </div>
+                                );
+                            },
+
+                            pre: ({ node, children, ...props }) => {
+                                node?.children.forEach((child) => {
+                                    if (child.type === 'element' && child.tagName === 'code')
+                                        child.properties.block = true
+                                })
+                                return (
+                                    <pre {...props} className="bg-gray-100 dark:bg-gray-900 p-3 rounded-md mb-4 font-mono text-sm overflow-auto">
+                                        {children}
+                                    </pre>
                                 );
                             },
 
