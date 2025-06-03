@@ -228,10 +228,10 @@ export default function IndexPage() {
             <li>Click "Generate Installer" to create your custom installer</li>
             <li>Download and distribute your installer to your players</li>
           </ol>
-          <p className="mt-4">
-            This tool uses the <Link href="https://github.com/sshcrack/packwiz-launcher" isExternal className="underline">packwiz-launcher</Link> to create custom modpack installers.
+            <p className="mt-4">
+            This tool creates installers that use <Link href="https://prismlauncher.org/" isExternal className="underline">PrismLauncher</Link> to launch Minecraft instances and <Link href="https://github.com/sshcrack/packwiz-launcher" isExternal className="underline">packwiz-launcher</Link> to install the modpack.
             Most operations are performed directly client-side, with server functions only used when GitHub authentication is required.
-          </p>
+            </p>
         </div>
 
         <div className="mt-8 text-center">
