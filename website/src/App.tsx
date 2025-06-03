@@ -1,11 +1,18 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
 import IndexPage from './pages';
+import GuidePage from './pages/guide';
 
 function App() {
   return (
-    <MainLayout>
-      <IndexPage />
-    </MainLayout>
+    <Router>
+      <MainLayout>
+        <Routes>
+          <Route path="/" element={<IndexPage />} />
+          <Route path="/guide" element={<GuidePage />} />
+        </Routes>
+      </MainLayout>
+    </Router>
   );
 }
 

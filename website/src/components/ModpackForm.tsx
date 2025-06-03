@@ -1,8 +1,9 @@
 import { ModpackConfig } from '@/types/modpack';
 import { fileToDataUrl } from '@/utils/iconConverter';
 import { Button } from '@heroui/button';
-import { Input } from '@heroui/input';
+import { Input, Textarea } from '@heroui/input';
 import { Switch } from '@heroui/switch';
+import { SelectItem, Select } from '@heroui/select';
 import init, { convert_to_ico } from "img-to-ico";
 import { useRef, useState } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -13,6 +14,17 @@ interface ModpackFormProps {
     processingStep?: string;
 }
 
+const DEBUG_DEFAULTS: ModpackConfig = {
+    name: 'Minecolonies',
+    author: 'Minecolonies Team',
+    description: 'A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.',
+    logo_url: 'https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg',
+    packwiz_url: 'http://localhost:3000',
+    base_pack_url: 'http://localhost:3001/base_modpack.zip',
+    theme: 'dark',
+    background: 'stone'
+}
+
 export default function ModpackForm({ onSubmit, isLoading, processingStep }: ModpackFormProps) {
     const [useCustomIcon, setUseCustomIcon] = useState(false);
     const [initialized, setInitialized] = useState(false);
@@ -20,7 +32,8 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
-    const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null); const [formData, setFormData] = useState<ModpackConfig>({
+    const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null);
+    const [formData, setFormData] = useState<ModpackConfig>(import.meta.env.DEV ? DEBUG_DEFAULTS : {
         name: '',
         author: '',
         description: '',
@@ -93,7 +106,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <Input
                         id="name"
                         name="name"
-                        required
+                        isRequired
                         value={formData.name}
                         onChange={handleInputChange}
                         placeholder="My Awesome Modpack"
@@ -108,7 +121,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <Input
                         id="author"
                         name="author"
-                        required
+                        isRequired
                         value={formData.author}
                         onChange={handleInputChange}
                         placeholder="Your Name"
@@ -119,14 +132,14 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <label htmlFor="description" className="block text-sm font-medium mb-1">
                         Description
                     </label>
-                    <textarea
+                    <Textarea
                         id="description"
                         name="description"
-                        required
+                        isRequired
                         value={formData.description}
                         onChange={handleInputChange}
                         placeholder="A short description of your modpack..."
-                        className="w-full min-h-20 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full min-h-20 rounded-md"
                         rows={4}
                     />
                 </div>
@@ -138,7 +151,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <Input
                         id="logo_url"
                         name="logo_url"
-                        required
+                        isRequired
                         value={formData.logo_url}
                         onChange={handleInputChange}
                         placeholder="https://example.com/logo.png"
@@ -153,7 +166,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <Input
                         id="packwiz_url"
                         name="packwiz_url"
-                        required
+                        isRequired
                         value={formData.packwiz_url}
                         onChange={handleInputChange}
                         placeholder="https://example.com/pack.toml"
@@ -168,7 +181,7 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                     <Input
                         id="base_pack_url"
                         name="base_pack_url"
-                        required
+                        isRequired
                         value={formData.base_pack_url}
                         onChange={handleInputChange}
                         placeholder="https://example.com/basepack"
@@ -180,27 +193,28 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                         Theme
                     </label>
                     <div className="flex items-center space-x-2">
-                        <select
+                        <Select
                             id="theme"
                             name="theme"
-                            required
-                            value={formData.theme}
-                            onChange={(e) => setFormData(prev => ({ ...prev, theme: e.target.value as 'dark' | 'light' }))}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            defaultSelectedKeys={["dark"]}
+                            isRequired
+                            onSelectionChange={(e) => setFormData(prev => ({ ...prev, theme: e as unknown as 'dark' | 'light' }))}
+                            className="w-full rounded-md"
                         >
-                            <option value="dark">Dark</option>
-                            <option value="light">Light</option>
-                        </select>
+                            <SelectItem key="dark">Dark</SelectItem>
+                            <SelectItem key="light">Light</SelectItem>
+                        </Select>
                     </div>
                 </div>
 
                 <div>
                     <label htmlFor="background_block" className="block text-sm font-medium mb-1">
                         Background Block (Minecraft block name)
-                    </label>                    <Input
+                    </label>
+                    <Input
                         id="background_block"
                         name="background"
-                        required
+                        isRequired
                         value={formData.background}
                         onChange={handleInputChange}
                         placeholder="stone"
@@ -251,13 +265,13 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
                             )}
                             <div className='h-5' />
                             <Turnstile
-                            siteKey='0x4AAAAAABfrRkvlvcZn3fZ-'
-                            onSuccess={token => setTurnstileToken(token)}
-                            onExpire={() => setTurnstileToken(null)}
-                            onError={err => {
-                                setTurnstileToken(null)
-                                alert(err)
-                            }}
+                                siteKey='0x4AAAAAABfrRkvlvcZn3fZ-'
+                                onSuccess={token => setTurnstileToken(token)}
+                                onExpire={() => setTurnstileToken(null)}
+                                onError={err => {
+                                    setTurnstileToken(null)
+                                    alert(err)
+                                }}
                             />
                         </div>
                     )

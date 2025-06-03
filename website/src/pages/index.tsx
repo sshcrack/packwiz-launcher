@@ -3,9 +3,11 @@ import { ModpackConfig } from '@/types/modpack';
 import { appendDataToExecutable, downloadFile, downloadFileBlob, getLatestReleaseArtifact, pollWorkflowCompletion, triggerGitHubWorkflow } from '@/utils/github';
 import { isIcoFile } from '@/utils/iconConverter';
 import { Button } from '@heroui/button';
+import { Alert } from '@heroui/alert';
 import { Link } from '@heroui/link';
 import { BlobReader, ZipReader } from "@zip.js/zip.js";
 import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +33,7 @@ export default function IndexPage() {
       let executableArrayBuffer: ArrayBuffer;
 
       if (useCustomIcon && customIconFile) {
-        if(!turnstileToken) {
+        if (!turnstileToken) {
           throw new Error('Turnstile token is required for custom icon uploads. Please complete the CAPTCHA.');
         }
 
@@ -122,6 +124,14 @@ export default function IndexPage() {
           <p className="text-xl mb-6">
             Create custom-branded installers for your Minecraft modpacks with ease
           </p>
+          <Alert color="primary" classNames={{
+            base: "bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800",
+            mainWrapper: "flex-row gap-1 items-center"
+          }}>
+            <span>Need help? Check out our </span>
+            <RouterLink to="/guide" className="font-medium underline">comprehensive guide</RouterLink>
+            <span> for creating and publishing modpacks!</span>
+          </Alert>
         </div>
 
         {executableUrl ? (
