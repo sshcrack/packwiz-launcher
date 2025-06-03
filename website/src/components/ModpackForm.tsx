@@ -21,14 +21,14 @@ export default function ModpackForm({ onSubmit, isLoading, processingStep }: Mod
 
     const [customIconFile, setCustomIconFile] = useState<File | null>(null);
     const [customIconPreviewUrl, setCustomIconPreviewUrl] = useState<string | null>(null); const [formData, setFormData] = useState<ModpackConfig>({
-        name: 'Minecolonies',
-        author: 'Minecolonies Team',
-        description: 'A modpack focused on building and managing colonies with the Minecolonies mod. Includes various quality of life mods and performance improvements.',
-        logo_url: 'https://discord.do/wp-content/uploads/2023/08/MineColonies.jpg',
-        packwiz_url: 'http://localhost:3000',
-        base_pack_url: 'http://localhost:3001/base_modpack.zip',
-        theme: 'dark',
-        background: 'stone'
+        name: '',
+        author: '',
+        description: '',
+        logo_url: '',
+        packwiz_url: '',
+        base_pack_url: '',
+        theme: 'light',
+        background: 'dirt'
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

@@ -287,12 +287,14 @@ const app = new Elysia()
                 return { error: `GitHub API error: ${errorText}` };
             }
 
+            console.log('Workflow triggered successfully. waiting for run...');
             await new Promise((resolve, reject) => {
                 setTimeout(() => {
                     resolve({ message: 'Workflow triggered successfully' });
-                }, 1000);
+                }, 2000);
             });
 
+            console.log('Getting latest workflow run...');
             // Get the workflow run ID
             const runsResponse = await fetch(
                 `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/runs?per_page=1`,
