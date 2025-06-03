@@ -122,9 +122,6 @@ export default function IndexPage() {
           <p className="text-xl mb-6">
             Create custom-branded installers for your Minecraft modpacks with ease
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Uses direct GitHub API integration for faster performance
-          </p>
         </div>
 
         {executableUrl ? (
