@@ -214,14 +214,14 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                     <label htmlFor="theme" className="block text-sm font-medium mb-1">
                         Theme
                     </label>
-                    <div className="flex items-center space-x-2">
-                        <Select
+                    <div className="flex items-center space-x-2">                        <Select
                             id="theme"
                             name="theme"
                             defaultSelectedKeys={["dark"]}
                             isRequired
                             onSelectionChange={(e) => setFormData(prev => ({ ...prev, theme: e as unknown as 'dark' | 'light' }))}
                             className="w-full rounded-md"
+                            aria-label="Select theme"
                         >
                             <SelectItem key="dark">Dark</SelectItem>
                             <SelectItem key="light">Light</SelectItem>
@@ -258,6 +258,7 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                             setIconConversionError(null);
                         }
                     }}
+                    aria-label="Use custom icon for installer"
                 />
                     <label htmlFor="useCustomIcon" className="text-sm font-medium">
                         Use custom icon for installer
@@ -293,8 +294,7 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                             )}
                             <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
                                 Note: Uploaded icons will be publicly accessible on GitHub.
-                            </p>
-                            <div className='h-5' />                            <Turnstile
+                            </p>                            <div className='h-5' />                            <Turnstile
                                 siteKey='0x4AAAAAABfrRkvlvcZn3fZ-'
                                 onSuccess={token => setTurnstileToken(token)}
                                 onExpire={() => setTurnstileToken(null)}
@@ -302,6 +302,7 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                                     setTurnstileToken(null);
                                     setIconConversionError(`Turnstile error: ${err}`);
                                 }}
+                                aria-label="CAPTCHA verification"
                             />
                         </div>
                     )
@@ -314,10 +315,9 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                             : 'Generating Installer...'
                         : 'Generate Installer'}
                 </Button>
-                
-                {isLoading && (
+                  {isLoading && (
                     <>
-                        <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
+                        <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5" role="progressbar" aria-label="Installation progress" aria-valuenow={50} aria-valuemin={0} aria-valuemax={100}>
                             <div className="bg-blue-600 h-1.5 rounded-full animate-pulse w-full"></div>
                         </div>
                         <p className="mt-3 text-sm font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700 p-2 rounded">

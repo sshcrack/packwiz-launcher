@@ -14,7 +14,7 @@ const ModpackForm = lazy(() => import('@/components/ModpackForm'));
 const FormLoadingSpinner = () => (
   <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex justify-center items-center min-h-[400px]">
     <div className="text-center">
-      <div className="relative mb-4 mx-auto w-16 h-16">
+      <div className="relative mb-4 mx-auto w-16 h-16" role="status" aria-label="Loading form">
         <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full"></div>
         <div className="w-16 h-16 border-4 border-blue-500 dark:border-blue-400 rounded-full animate-spin absolute top-0 left-0 border-t-transparent border-b-transparent"></div>
       </div>
@@ -182,12 +182,11 @@ export default function IndexPage() {
             </div>
           </div>
         ) : (
-          <>
-            {isLoading && processingStep && (
+          <>            {isLoading && processingStep && (
               <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-blue-700 dark:text-blue-400">
                 <h3 className="font-bold">Processing</h3>
                 <p>{processingStep}</p>
-                <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2.5">
+                <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2.5" role="progressbar" aria-label="Processing status" aria-valuenow={50} aria-valuemin={0} aria-valuemax={100}>
                   <div className="bg-blue-600 h-2.5 rounded-full animate-pulse w-full"></div>
                 </div>
               </div>
