@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { commitFileToGitHub, getWorkflowRunByCommit } from '../utils/github';
+import { REPO_OWNER, REPO_NAME } from '../utils/constants';
 
 // Workflow trigger route
 export const workflowRoutes = new Elysia()
@@ -115,6 +116,11 @@ export const workflowRoutes = new Elysia()
                 message: 'Icon file committed successfully to the build branch',
                 commit: commitResult.commitSha,
                 filename: 'icon.ico',
+                // Format for frontend compatibility
+                id: workflowRun ? workflowRun.id : 0,
+                status: workflowRun ? workflowRun.status : 'queued',
+                artifacts_url: workflowRun ? `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/runs/${workflowRun.id}/artifacts` : '',
+                // Additional workflow info for debugging
                 workflow: workflowRun ? {
                     id: workflowRun.id,
                     name: workflowRun.name,

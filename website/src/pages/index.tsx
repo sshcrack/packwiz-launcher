@@ -25,7 +25,7 @@ const FormLoadingSpinner = () => (
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>("Whats up");
   const [executableUrl, setExecutableUrl] = useState<string | null>(null);
   const [executableBlob, setExecutableBlob] = useState<Blob | null>(null);
   const [modpackName, setModpackName] = useState<string>('');
@@ -168,13 +168,6 @@ export default function IndexPage() {
           </div>
         ) : (
           <>
-            {error && (
-              <div className="mb-6 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg text-red-700 dark:text-red-400">
-                <h3 className="font-bold">Error</h3>
-                <p>{error}</p>
-              </div>
-            )}
-
             {isLoading && processingStep && (
               <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-blue-700 dark:text-blue-400">
                 <h3 className="font-bold">Processing</h3>
@@ -193,6 +186,13 @@ export default function IndexPage() {
                   processingStep={processingStep}
                 />
               </Suspense>
+
+              {error && (
+                <div className="mt-6 mb-2 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg text-red-700 dark:text-red-400">
+                  <h3 className="font-bold">Error</h3>
+                  <p>{error}</p>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -228,10 +228,10 @@ export default function IndexPage() {
             <li>Click "Generate Installer" to create your custom installer</li>
             <li>Download and distribute your installer to your players</li>
           </ol>
-            <p className="mt-4">
+          <p className="mt-4">
             This tool creates installers that use <Link href="https://prismlauncher.org/" isExternal className="underline">PrismLauncher</Link> to launch Minecraft instances and <Link href="https://github.com/sshcrack/packwiz-launcher" isExternal className="underline">packwiz-launcher</Link> to install the modpack.
             Most operations are performed directly client-side, with server functions only used when GitHub authentication is required.
-            </p>
+          </p>
         </div>
 
         <div className="mt-8 text-center">
