@@ -3,12 +3,16 @@ import dotenv from 'dotenv';
 import { Elysia } from 'elysia';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { artifactRoutes } from './routes/artifact';
+import { debugRoutes } from './routes/debug';
+import { downloadRoutes } from './routes/download';
+import { workflowRoutes } from './routes/workflow';
+import { uploadsDir } from './utils/constants';
 
 // Load environment variables
 dotenv.config();
 
-// Check for GitHub token
+// Check for required environment variables
 if (!process.env.GITHUB_TOKEN) {
     console.error('Error: GITHUB_TOKEN environment variable is not set');
     console.error('Please create a .env file with your GitHub token');
@@ -27,81 +31,6 @@ if (!process.env.TURNSTILE_SECRET) {
     process.exit(1);
 }
 
-// Define the GitHub repository and workflow ID
-const GITHUB_REPO = 'sshcrack/packwiz-launcher';
-const WORKFLOW_ID = 'build-with-custom-icon.yml';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.join(__dirname, '..');
-
-// Create uploads directory for local storage
-const uploadsDir = path.join(rootDir, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Cache for the latest release URL
-let latestReleaseCache: {
-    url: string;
-    timestamp: number;
-} | null = null;
-
-// Cache TTL in milliseconds (1 hour)
-const CACHE_TTL = 60 * 60 * 1000;
-
-// Setup file handling functions for icon uploads
-const storeIcon = async (file: File) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const filename = `icon-${uniqueSuffix}.ico`;
-    const filepath = path.join(uploadsDir, filename);
-
-    const buffer = await file.arrayBuffer();
-    await Bun.write(filepath, buffer);
-
-    return {
-        filename,
-        size: buffer.byteLength,
-    };
-};
-
-// Function to get latest release URL (with caching)
-const getLatestReleaseUrl = async (): Promise<string> => {
-    // Check if we have a valid cached URL
-    if (latestReleaseCache && (Date.now() - latestReleaseCache.timestamp) < CACHE_TTL) {
-        return latestReleaseCache.url;
-    }
-
-    // Fetch the latest release info from GitHub
-    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-        headers: {
-            'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-        },
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to get latest release: ${await response.text()}`);
-    }
-
-    const data = await response.json();
-
-    // Find the modpack-installer.exe asset
-    const asset = data.assets.find((a: any) => a.name === 'modpack-installer.exe');
-
-    if (!asset) {
-        throw new Error('No modpack-installer.exe found in the latest release');
-    }
-
-    // Cache the URL
-    latestReleaseCache = {
-        url: asset.browser_download_url,
-        timestamp: Date.now(),
-    };
-
-    return asset.browser_download_url;
-};
-
 // Create Elysia app
 const app = new Elysia()
     .use(cors({
@@ -109,8 +38,7 @@ const app = new Elysia()
     }))
     .onAfterResponse(({ set }) => {
         // Check if we need to delete a file after sending the response
-        if (set.headers['on-response-sent'] && set.headers['file-to-delete']) {
-            const filename = set.headers['file-to-delete'] as string;
+        if (set.headers['on-response-sent'] && set.headers['file-to-delete']) {            const filename = set.headers['file-to-delete'] as string;
             const filepath = path.join(uploadsDir, filename);
             try {
                 fs.unlinkSync(filepath);
@@ -120,266 +48,13 @@ const app = new Elysia()
             }
         }
     })
-    // Add the new download route for the launcher executable
-    .get('/download', async ({ set }) => {
-        try {
-            // Get the latest release URL (cached if available)
-            const downloadUrl = await getLatestReleaseUrl();
+    // Mount all route handlers
+    .use(downloadRoutes)
+    .use(workflowRoutes)
+    .use(artifactRoutes);
 
-            // Fetch the file from GitHub
-            const response = await fetch(downloadUrl, {
-                headers: {
-                    'Accept': 'application/octet-stream',
-                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                },
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                set.status = response.status;
-                return { error: `GitHub API error: ${errorText}` };
-            }
-
-            // Set appropriate headers for streaming
-            set.headers['Content-Type'] = response.headers.get('content-type') || 'application/octet-stream';
-            set.headers['Content-Disposition'] = 'attachment; filename="modpack-installer.exe"';
-
-            // Stream the response directly to the client
-            return new Response(response.body);
-        } catch (error: any) {
-            console.error('Error downloading launcher:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .get('/uploads/:filename', async ({ params, set }) => {
-        try {
-            const { filename } = params;
-            const filepath = path.join(uploadsDir, filename);
-
-            // Check if file exists
-            if (!fs.existsSync(filepath)) {
-                set.status = 404;
-                return { error: 'File not found' };
-            }
-
-            // Read file content
-            const fileContent = await Bun.file(filepath).arrayBuffer();
-
-            // Set appropriate headers for ico file
-            set.headers['Content-Type'] = 'image/x-icon';
-
-            // Create a response with the file content
-            const response = new Response(fileContent);
-            // Use a response interceptor to delete the file after the response is sent
-            set.headers['on-response-sent'] = 'true'; // Add a custom header to trigger the response hook
-
-            // Store just the filename for deletion in a custom property
-            set.headers['file-to-delete'] = filename;
-
-            response.headers.set('Connection', 'close'); // Ensure connection is closed after response
-
-            return response;
-        } catch (error: any) {
-            console.error('Error serving icon file:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .post('/trigger-workflow', async ({ request, set }) => {
-        let form: FormData | undefined = undefined;
-        try {
-            form = await request.formData();
-        } catch (error: any) {
-            set.status = 400;
-            return { error: 'Invalid form data' };
-        }
-
-        if (!form || !form.has('token')) {
-            set.status = 400;
-            return { error: 'Turnstile token is required' };
-        }
-
-        const turnstileToken = form.get('token') as string | null;
-        if (!turnstileToken || typeof turnstileToken !== 'string' || turnstileToken.length > 2048) {
-            set.status = 400;
-            return { error: 'Invalid token' };
-        }
-
-        // Verify Turnstile token
-        try {
-            const turnstileResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    secret: process.env.TURNSTILE_SECRET,
-                    response: turnstileToken,
-                    remoteip: request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || request.headers.get("X-Real-IP")
-                })
-            });
-
-            const json = await turnstileResponse.json();
-            if (!json.success) {
-                set.status = 401;
-                return { error: 'Invalid Turnstile token' };
-            }
-
-        } catch (error: any) {
-            set.status = 500;
-            console.error('Error verifying Turnstile token:', error);
-            return { error: 'Failed to verify Turnstile token' };
-        }
-
-        try {
-            let iconUrl = null;
-
-            // Check if an icon file was uploaded
-            const iconFile = form.get('icon') as File | null;
-            if (iconFile) {
-                // Validate icon file
-                const fileExtension = iconFile.name.substring(iconFile.name.lastIndexOf('.')).toLowerCase();
-                if (fileExtension !== '.ico' && iconFile.type !== 'image/x-icon') {
-                    set.status = 400;
-                    return { error: 'Only .ico files are allowed' };
-                }
-
-                // Check file size (1MB limit)
-                if (iconFile.size > 1024 * 1024) {
-                    set.status = 400;
-                    return { error: 'File size exceeds 1MB limit' };
-                }
-
-                // Store the file
-                const { filename } = await storeIcon(iconFile);
-
-                // Create the URL to access the file
-                iconUrl = `${process.env.BASE_URL}/uploads/${filename}`;
-            }
-
-            // Create inputs object with icon URL if available
-            const inputs: Record<string, string> = {};
-            if (iconUrl) {
-                inputs.icon_url = iconUrl;
-            }
-
-            // GitHub API endpoint for triggering workflows - using server-side constants
-            const url = `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`;
-
-            // Trigger the workflow
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ref: 'master',
-                    inputs,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                set.status = response.status;
-                return { error: `GitHub API error: ${errorText}` };
-            }
-
-            console.log('Workflow triggered successfully. waiting for run...');
-            await new Promise((resolve, reject) => {
-                setTimeout(() => {
-                    resolve({ message: 'Workflow triggered successfully' });
-                }, 2000);
-            });
-
-            console.log('Getting latest workflow run...');
-            // Get the workflow run ID
-            const runsResponse = await fetch(
-                `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/runs?per_page=1`,
-                {
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                    },
-                }
-            );
-
-            if (!runsResponse.ok) {
-                const errorText = await runsResponse.text();
-                set.status = runsResponse.status;
-                return { error: `Failed to get workflow runs: ${errorText}` };
-            }
-
-            const runsData = await runsResponse.json();
-            const latestRun = runsData.workflow_runs[0];
-
-            return {
-                id: latestRun.id,
-                status: latestRun.status,
-                artifacts_url: latestRun.artifacts_url
-            };
-        } catch (error: any) {
-            console.error('Error triggering workflow:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    })
-    .get('/download-artifact/:artifactId', async ({ params, set }) => {
-        try {
-            const { artifactId } = params;
-
-            if (!artifactId) {
-                set.status = 400;
-                return { error: 'Artifact ID is required' };
-            }
-
-            // Construct the URL using only the artifact ID
-            const url = `https://api.github.com/repos/${GITHUB_REPO}/actions/artifacts/${artifactId}/zip`;
-
-            // Download the artifact with GitHub token
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                },
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                set.status = response.status;
-                return { error: `GitHub API error: ${errorText}` };
-            }
-
-            // Set appropriate headers for streaming
-            set.headers['Content-Type'] = response.headers.get('content-type') || 'application/octet-stream';
-            set.headers['Content-Disposition'] = response.headers.get('content-disposition') || 'attachment';
-
-            // Return the response body directly to stream it to the client
-            return new Response(response.body);
-        } catch (error: any) {
-            console.error('Error downloading artifact:', error);
-            set.status = 500;
-            return { error: error.message };
-        }
-    });
-
-if(process.env.DEBUG === "true") {
-    app.get("*", async ({ set, path }) => {
-        const f = await fetch("http://localhost:5173" + path)
-
-        if (!f.ok) {
-            set.status = f.status;
-            return { error: `Failed to fetch from Vite dev server: ${await f.text()}` };
-        }
-
-        return new Response(f.body, {
-            headers: f.headers,
-            status: f.status
-        });
-    })
-}
+// Add debug routes if in debug mode
+debugRoutes(app);
 
 // Start server
 const PORT = Number(process.env.PORT || 3001);
