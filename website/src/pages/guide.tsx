@@ -53,7 +53,7 @@ export default function GuidePage() {
                                     return <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded" {...props}>{children}</code>;
                                 }
                                 return (
-                                        <code className={className} {...props}>{children}</code>
+                                    <code className={className} {...props}>{children}</code>
                                 );
                             },
 

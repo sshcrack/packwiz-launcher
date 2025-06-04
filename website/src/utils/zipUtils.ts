@@ -11,7 +11,7 @@ export { BlobReader, ZipReader, BlobWriter };
 export async function extractFirstEntryAsArrayBuffer(zipBlob: Blob): Promise<ArrayBuffer> {
   const zipFileReader = new BlobReader(zipBlob);
   const zipReader = new ZipReader(zipFileReader);
-  
+
   try {
     const entries = await zipReader.getEntries();
     const firstEntry = entries.shift();
@@ -39,7 +39,7 @@ export async function extractFirstEntryAsArrayBuffer(zipBlob: Blob): Promise<Arr
 export async function extractFileFromZip(zipBlob: Blob, filename: string): Promise<Blob | null> {
   const zipFileReader = new BlobReader(zipBlob);
   const zipReader = new ZipReader(zipFileReader);
-  
+
   try {
     const entries = await zipReader.getEntries();
     const targetEntry = entries.find(entry => entry.filename === filename);
