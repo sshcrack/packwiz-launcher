@@ -272,7 +272,8 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                         <div className="mt-4">
                             <label htmlFor="iconFile" className="block text-sm font-medium mb-1">
                                 Upload Icon (image must be square and under 1MB)
-                            </label>                            <Input
+                            </label>
+                            <Input
                                 id="iconFile"
                                 type="file"
                                 accept="image/*"
@@ -290,6 +291,9 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                                     <img src={customIconPreviewUrl} alt="Icon Preview" className="mt-2 h-16 w-16" />
                                 </div>
                             )}
+                            <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+                                Note: Uploaded icons will be publicly accessible on GitHub.
+                            </p>
                             <div className='h-5' />                            <Turnstile
                                 siteKey='0x4AAAAAABfrRkvlvcZn3fZ-'
                                 onSuccess={token => setTurnstileToken(token)}
@@ -303,18 +307,23 @@ const ModpackForm: React.FC<ModpackFormProps> = ({ onSubmit, isLoading, processi
                     )
                 )}
             </div>
-            <div className="pt-4">
-                <Button type="submit" disabled={isLoading} className="w-full">
+            <div className="pt-4">                <Button type="submit" disabled={isLoading} className="w-full">
                     {isLoading
                         ? processingStep
                             ? `${processingStep}`
                             : 'Generating Installer...'
                         : 'Generate Installer'}
                 </Button>
+                
                 {isLoading && (
-                    <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
-                        <div className="bg-blue-600 h-1.5 rounded-full animate-pulse w-full"></div>
-                    </div>
+                    <>
+                        <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
+                            <div className="bg-blue-600 h-1.5 rounded-full animate-pulse w-full"></div>
+                        </div>
+                        <p className="mt-3 text-sm font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700 p-2 rounded">
+                            Please do not close or navigate away from this page while your installer is being generated.
+                        </p>
+                    </>
                 )}
             </div>
         </form>

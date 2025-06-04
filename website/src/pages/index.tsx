@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { ModpackConfig } from '@/types/modpack';
 import { isIcoFile } from '@/utils/iconConverter';
 import { Button } from '@heroui/button';
@@ -25,11 +25,26 @@ const FormLoadingSpinner = () => (
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>("Whats up");
+  const [error, setError] = useState<string | null>(null);
   const [executableUrl, setExecutableUrl] = useState<string | null>(null);
   const [executableBlob, setExecutableBlob] = useState<Blob | null>(null);
   const [modpackName, setModpackName] = useState<string>('');
   const [processingStep, setProcessingStep] = useState<string>('');
+
+  // Add page leave warning when installer is being generated
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLoading) {
+        const message = "Your installer is still being generated. Leaving now will cancel the process. Are you sure you want to leave?";
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isLoading]);
 
   const handleFormSubmit = async (
     config: ModpackConfig,
