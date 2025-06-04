@@ -1,0 +1,156 @@
+name: Build with Custom Icon
+
+on:
+  workflow_dispatch:
+    inputs:
+      icon_url:
+        description: "URL to the ICO file"
+        required: true
+        type: string
+  push:
+    branches:
+      - build
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download latest packwiz-launcher release
+        id: download-launcher
+        shell: pwsh
+        run: |
+          $repo = "sshcrack/packwiz-launcher"
+          $api_url = "https://api.github.com/repos/$repo/releases/latest"
+
+          # Get latest release info
+          $release = Invoke-RestMethod -Uri $api_url
+
+          # Find the exe asset
+          $asset = $release.assets | Where-Object { $_.name -like "*.exe" } | Select-Object -First 1
+
+          if ($asset) {
+            # Create directory for the downloaded file
+            New-Item -ItemType Directory -Force -Path "launcher"
+            
+            # Download the exe
+            $output_path = "launcher\packwiz-launcher.exe"
+            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $output_path
+            
+            # Set output variables
+            echo "launcher_path=$output_path" >> $env:GITHUB_OUTPUT
+            echo "Downloaded launcher version: $($release.tag_name)"
+          }
+          else {
+            echo "No executable found in the latest release!"
+            exit 1
+          }
+
+      - name: Download and extract Resource Hacker
+        id: download-reshacker
+        shell: pwsh
+        run: |
+          $url = "https://www.angusj.com/resourcehacker/resource_hacker.zip"
+          $output_path = "resource_hacker.zip"
+
+          # Download Resource Hacker
+          Invoke-WebRequest -Uri $url -OutFile $output_path
+
+          # Extract the zip
+          Expand-Archive -Path $output_path -DestinationPath "resource_hacker"
+
+          # Verify ResourceHacker.exe exists
+          if (Test-Path "resource_hacker\ResourceHacker.exe") {
+            echo "reshacker_path=resource_hacker\ResourceHacker.exe" >> $env:GITHUB_OUTPUT
+            echo "Resource Hacker downloaded and extracted successfully"
+          }
+          else {
+            echo "ResourceHacker.exe not found in the extracted archive!"
+            exit 1
+          }
+
+      - name: Download icon file
+        id: download-icon
+        shell: pwsh
+        run: |
+          $output_path = "custom_icon.ico"
+
+          # Check the event that triggered the workflow
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            # Use the provided URL for manual workflow runs
+            $url = "${{ github.event.inputs.icon_url }}"
+            
+            # Download the icon file from URL
+            Write-Host "Downloading icon from URL: $url"
+            Invoke-WebRequest -Uri $url -OutFile $output_path
+          } 
+          else {
+            # For push events, use the repository's icon file
+            Write-Host "Using repository's icon.ico file"
+            Copy-Item "icon.ico" -Destination $output_path
+          }
+
+          # Verify the icon file exists
+          if (Test-Path $output_path) {
+            echo "icon_path=$output_path" >> $env:GITHUB_OUTPUT
+            echo "Icon prepared successfully"
+          }
+          else {
+            echo "Failed to prepare icon file!"
+            exit 1
+          }
+
+      - name: Change launcher icon
+        id: change-icon
+        shell: pwsh
+        run: |
+          $input_exe = "${{ steps.download-launcher.outputs.launcher_path }}"
+          $output_exe = "launcher\packwiz-launcher-custom.exe"
+          $reshacker = "${{ steps.download-reshacker.outputs.reshacker_path }}"
+          $icon = "${{ steps.download-icon.outputs.icon_path }}"
+
+          # Run Resource Hacker to change the icon
+          & $reshacker -open $input_exe -save $output_exe -action addoverwrite -res $icon -mask ICONGROUP,MAINICON
+
+          # Wait for up to 20 seconds for the file to appear
+          $timeoutSeconds = 20
+          $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+          $fileExists = $false
+
+          while ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSeconds) {
+            if (Test-Path $output_exe) {
+              $fileExists = $true
+              break
+            }
+            Start-Sleep -Milliseconds 500
+          }
+          $stopwatch.Stop()
+
+          # Verify the output file exists within timeout
+          if ($fileExists) {
+            echo "custom_launcher_path=$output_exe" >> $env:GITHUB_OUTPUT
+            echo "Icon successfully changed in $($stopwatch.Elapsed.TotalSeconds) seconds"
+          } else {
+            echo "Failed to create custom launcher executable within $timeoutSeconds seconds!"
+            exit 1
+          }
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            resource_hacker\ResourceHacker.exe
+            launcher\packwiz-launcher.exe
+          key: ${{ runner.os }}-packwiz-resources-${{ github.run_id }}-${{ github.run_number }}
+          restore-keys: |
+            ${{ runner.os }}-packwiz-resources-
+
+      - name: Upload customized launcher
+        uses: actions/upload-artifact@v4
+        with:
+          name: packwiz-launcher-custom
+          path: ${{ steps.change-icon.outputs.custom_launcher_path }}
+          retention-days: 7
